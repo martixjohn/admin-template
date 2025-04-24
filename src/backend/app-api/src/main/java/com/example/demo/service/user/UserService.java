@@ -8,7 +8,7 @@ import java.util.Set;
 /**
  * @author martix
  * @description
- * @time 2025/4/21 22:01
+ * @time 2025/4/25
  */
 public interface UserService {
 
@@ -35,6 +35,12 @@ public interface UserService {
      * @param password 密码
      */
     void login(String username, String password);
+
+    /**
+     * 登出当前用户
+     * @description 失败抛出异常
+     */
+    void logout();
 
     /**
      * 注册

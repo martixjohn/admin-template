@@ -9,10 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -28,7 +24,9 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -40,7 +38,7 @@ import java.util.function.Function;
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
 @Slf4j
 @RequiredArgsConstructor
-public class SpringSecurityConfig {
+public class SecurityConfig {
 
     private final AppSecurityProperties securityProperties;
 
@@ -48,17 +46,17 @@ public class SpringSecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
                                                    AppAccessDeniedHandler accessDeniedHandler,
                                                    AppAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
-        httpSecurity.csrf(AbstractHttpConfigurer::disable)
+        httpSecurity
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(config -> {
+                .authorizeHttpRequests(cfg -> {
                     // 配置anonymous和permitAll
-                    configureAuthorities(config);
+                    configureAuthorities(cfg);
                     // 任何URL都需要认证
-                    config.anyRequest().authenticated();
+                    cfg.anyRequest().authenticated();
                 })
-                .exceptionHandling(config -> {
-                    config.authenticationEntryPoint(authenticationEntryPoint)
+                .exceptionHandling(cfg -> {
+                    cfg.authenticationEntryPoint(authenticationEntryPoint)
                             .accessDeniedHandler(accessDeniedHandler);
                 })
         ;
@@ -67,12 +65,16 @@ public class SpringSecurityConfig {
         return httpSecurity.build();
     }
 
+//    默认提供了一个ProviderManager，装配一个DaoAuthenticationProvider
+//    @Bean
+//    public AuthenticationManager authenticationManager() throws Exception {
+//        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+//        // 自动装配，不用配置
+//        // provider.setPasswordEncoder(passwordEncoder());
+//        // provider.setUserDetailsService(userDetailsService);
+//        return new ProviderManager(provider);
+//    }
 
-    @Bean
-    public AuthenticationManager authenticationManager() throws Exception {
-        AuthenticationProvider provider = new DaoAuthenticationProvider();
-        return new ProviderManager(provider);
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -104,33 +106,44 @@ public class SpringSecurityConfig {
      * 从配置文件的properties进行配置权限
      */
     private void configureAuthoritiesFromProperties(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry registry) {
-        List<String> permitAllUri = Optional.ofNullable(securityProperties.getPermitAllUri()).orElse(new LinkedList<>());
-        List<String> anonymousUri = Optional.ofNullable(securityProperties.getAnonymousUri()).orElse(new LinkedList<>());
+        List<String> permitAllUri = securityProperties.getAuthorization().getPermitAllUri();
+        List<String> anonymousUri = securityProperties.getAuthorization().getAnonymousUri();
 
+        // 临时使用
         record HttpMethodAndUri(HttpMethod method, String realUri) {
         }
 
-//        将文件中的uri信息包装成请求方法和uri
+        //  将文件中的uri信息包装成请求方法和uri
         Function<String, HttpMethodAndUri> parseHttpMethodAndUri = (String uri) -> {
             String[] split = uri.split("\\s");
             if (split.length > 2) {
-                throw new RuntimeException("错误的属性：app.security.anonymous-uri" + uri);
+                throw new IllegalArgumentException("错误的uri配置：" + uri);
             }
             HttpMethod method = null;
             String realUri = split[0];
             if (split.length == 2) {
-                method = HttpMethod.valueOf(split[0]);
+                method = switch (split[0]) {
+                    case "GET" -> HttpMethod.GET;
+                    case "HEAD" -> HttpMethod.HEAD;
+                    case "POST" -> HttpMethod.POST;
+                    case "PUT" -> HttpMethod.PUT;
+                    case "PATCH" -> HttpMethod.PATCH;
+                    case "DELETE" -> HttpMethod.DELETE;
+                    case "OPTIONS" -> HttpMethod.OPTIONS;
+                    case "TRACE" -> HttpMethod.TRACE;
+                    default -> throw new IllegalArgumentException("错误的请求方法：" + split[0]);
+                };
                 realUri = split[1];
             }
             return new HttpMethodAndUri(method, realUri);
         };
 
-
+        // 允许所有
         for (String uri : permitAllUri) {
             HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUri.apply(uri);
             registry.requestMatchers(httpMethodAndUri.method(), httpMethodAndUri.realUri()).permitAll();
         }
-
+        // 仅允许匿名
         for (String uri : anonymousUri) {
             HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUri.apply(uri);
             registry.requestMatchers(httpMethodAndUri.method(), httpMethodAndUri.realUri()).anonymous();

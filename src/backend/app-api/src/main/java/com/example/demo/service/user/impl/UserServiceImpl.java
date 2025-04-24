@@ -117,7 +117,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         User user = getFullInfoByUsername(username)
                 .orElseThrow(() -> new AppServiceException(ExceptionCode.BAD_REQUEST, "用户找不到"));
         String correctPassword = user.getPassword();
+        //TODO 登录逻辑，存Session，Set-Cookie等
+    }
 
+    @Override
+    public void logout() {
+        // TODO 登出逻辑
     }
 
     @Override

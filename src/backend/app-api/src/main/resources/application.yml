@@ -19,3 +19,18 @@ server:
     encoding:
       charset: UTF-8
       force: true
+
+app:
+  security:
+    session:
+      storage-location: http
+    account:
+      expires-in: 3600
+      password-pattern: "[a-zA-Z0-9_-]{6,10}"
+      username-pattern: "[a-zA-Z0-9_-]{6,10}"
+
+    auth:
+      permit-all-uri:
+        -
+      anonymous-uri:
+        -
