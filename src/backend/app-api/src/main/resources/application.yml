@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: Admin
+    version: 1.0
+
+  datasource:
+    url: jdbc:mariadb://127.0.0.1:3306/db_test
+    username: root
+    password: root
+
+
+#debug: true
+mybatis-plus:
+  type-aliases-package: com.example.demo.**.pojo
+  mapper-locations: classpath*:com/example/demo/repository/mapper/mapper/**/*.xml
+
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
