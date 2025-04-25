@@ -10,7 +10,13 @@ import com.example.demo.common.pojo.entity.*;
 import com.example.demo.repository.user.*;
 import com.example.demo.common.pojo.service.User;
 import com.example.demo.service.user.UserService;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -32,13 +38,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     private final PermissionMapper permissionMapper;
     private final AppSecurityProperties appSecurityProperties;
     private final PasswordEncoder passwordEncoder;
-
+    private final SecurityContextHolderStrategy securityContextHolderStrategy;
     // 用户名匹配
     private final Pattern USERNAME_PATTERN;
     // 密码匹配
     private final Pattern PASSWORD_PATTERN;
 
-    public UserServiceImpl(UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, RolePermissionMapper rolePermissionMapper, PermissionMapper permissionMapper, AppSecurityProperties appSecurityProperties, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, RolePermissionMapper rolePermissionMapper, PermissionMapper permissionMapper, AppSecurityProperties appSecurityProperties, PasswordEncoder passwordEncoder, SecurityContextHolderStrategy securityContextHolderStrategy) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
@@ -48,9 +54,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         this.passwordEncoder = passwordEncoder;
         this.USERNAME_PATTERN = Pattern.compile(appSecurityProperties.getAccount().getUsernamePattern());
         this.PASSWORD_PATTERN = Pattern.compile(appSecurityProperties.getAccount().getPasswordPattern());
-
+        this.securityContextHolderStrategy = securityContextHolderStrategy;
     }
-
 
 
     @Override
@@ -117,7 +122,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         User user = getFullInfoByUsername(username)
                 .orElseThrow(() -> new AppServiceException(ExceptionCode.BAD_REQUEST, "用户找不到"));
         String correctPassword = user.getPassword();
+        if (!passwordEncoder.matches(password, correctPassword)) {
+            throw new AppServiceException(ExceptionCode.BAD_REQUEST, "用户名或密码错误");
+        }
         //TODO 登录逻辑，存Session，Set-Cookie等
+//        Authentication authentication = UsernamePasswordAuthenticationToken
+//                .authenticated(user, correctPassword, );
+//        SecurityContext securityContext = securityContextHolderStrategy.createEmptyContext();
+//        securityContext.setAuthentication();
     }
 
     @Override

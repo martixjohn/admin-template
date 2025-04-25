@@ -19,6 +19,9 @@ import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
@@ -47,6 +50,7 @@ public class SecurityConfig {
                                                    AppAccessDeniedHandler accessDeniedHandler,
                                                    AppAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
         httpSecurity
+                .csrf(cfg -> cfg.disable())// 临时
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(cfg -> {
@@ -55,9 +59,19 @@ public class SecurityConfig {
                     // 任何URL都需要认证
                     cfg.anyRequest().authenticated();
                 })
+                .securityContext(cfg -> {
+                    cfg.securityContextRepository(new DelegatingSecurityContextRepository(
+                            new HttpSessionSecurityContextRepository(),
+                            new RequestAttributeSecurityContextRepository()
+                    ));
+                    cfg.requireExplicitSave(true);
+                })
                 .exceptionHandling(cfg -> {
                     cfg.authenticationEntryPoint(authenticationEntryPoint)
                             .accessDeniedHandler(accessDeniedHandler);
+                })
+                .sessionManagement(cfg -> {
+                    cfg.maximumSessions(securityProperties.getSession().getMaximumSessions());
                 })
         ;
 

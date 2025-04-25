@@ -80,10 +80,7 @@ public class AppSecurityProperties {
          */
         private String passwordPattern = "[a-zA-Z0-9_-]{6,10}";
 
-        /**
-         * 登录过期时间，单位秒
-         */
-        private long expiresIn = 3600;
+
     }
 
     private Session session = new Session();
@@ -94,20 +91,29 @@ public class AppSecurityProperties {
     public static class Session {
 
         /**
-         * Session存储位置
+         * 登录过期时间，单位秒
          */
-        private SessionStorageLocation storageLocation;
+        private long expiresIn = 3600;
 
-        public enum SessionStorageLocation {
-            /**
-             * 数据库
-             */
-            DB,
-            /**
-             * HTTP Session，内存
-             */
-            HTTP
-            ;
-        }
+        /**
+         * 用户最大会话数量，超过会导致旧会话失效
+         */
+        private int maximumSessions = 1;
+//        /**
+//         * Session存储位置
+//         */
+//        private SessionStorageLocation storageLocation;
+//
+//        public enum SessionStorageLocation {
+//            /**
+//             * 数据库
+//             */
+//            DB,
+//            /**
+//             * HTTP Session，内存
+//             */
+//            HTTP
+//            ;
+//        }
     }
 }
