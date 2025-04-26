@@ -1,4 +1,4 @@
-package com.example.demo.common.pojo.entity;
+package com.example.demo.common.pojo.service;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
@@ -8,25 +8,19 @@ import java.time.LocalDateTime;
 /**
  * @author martix
  * @description
- * @time 2025/4/23 10:09
+ * @time 2025/4/26
  */
 @Data
-public class BasePO {
-    @TableId(type = IdType.AUTO)
+public class BaseDTO {
+
+    // 对应数据库id
     protected Long id;
 
     // 数据创建时间
-    @TableField(fill = FieldFill.INSERT)
     protected LocalDateTime createdTime;
 
-    // 数据更新时间，最后软删除也会更新
-    @TableField(fill = FieldFill.UPDATE)
+    // 数据更新时间
     protected LocalDateTime updatedTime;
-
-
-    // 是否删除（软删除）
-    @TableLogic(value = "0", delval = "1")
-    protected Boolean deleted;
 
     // 描述信息
     protected String description;

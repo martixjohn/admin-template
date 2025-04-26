@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
+
 /**
  * 用户
  *
@@ -29,4 +31,13 @@ public class UserPO extends BasePO {
 
     // 头像，服务器存储路径，IP:port/xxx
     private String avatarServerPath;
+
+    // 用户是否被封锁
+    private Boolean accountLocked;
+
+    // 用户是否被禁用
+    private Boolean disabled;
+
+    // 上一次登录时间
+    private LocalDateTime lastLoginTime;
 }

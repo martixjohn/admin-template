@@ -5,7 +5,7 @@ package com.example.demo.common.auth;
  *
  * @author martix
  * @description
- * @time 2025/4/24 23:23
+ * @time 2025/4/24
  */
 public abstract class Authorities {
     /**
@@ -19,7 +19,7 @@ public abstract class Authorities {
     public static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     /**
-     * 角色
+     * 普通用户
      */
     public static final String ROLE_USER = "ROLE_USER";
 

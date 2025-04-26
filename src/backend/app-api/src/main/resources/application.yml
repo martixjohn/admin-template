@@ -8,8 +8,42 @@ spring:
     username: root
     password: root
 
+app:
+  db:
+    enable-init: false
+  security:
+    session:
+      expires-in: 1s
+      maximum-sessions: 1
+    authorization:
+      permit-all-uri:
+        - GET /
+        - GET /v3/api-docs/*
+        - GET /doc.html
+        - GET /webjars/**
+      anonymous-uri:
 
-#debug: true
+
+# springdoc-openapi项目配置
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.example.demo.api
+      display-name: 默认文档
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    swagger-model-name: 模型
+  documents:
+    - group: 'default'
+  production: false
+
 mybatis-plus:
   type-aliases-package: com.example.demo.**.pojo
   mapper-locations: classpath*:com/example/demo/repository/mapper/mapper/**/*.xml
@@ -18,20 +52,13 @@ server:
   servlet:
     encoding:
       charset: UTF-8
-      force: true
-
-app:
-  security:
     session:
-      expires-in: 3600
-      maximum-sessions: 1
+      store-dir: ./target/session-dir
+  error:
+    whitelabel:
+      enabled: false
 
-    account:
-      password-pattern: "[a-zA-Z0-9_-]{6,10}"
-      username-pattern: "[a-zA-Z0-9_-]{6,10}"
-
-    auth:
-      permit-all-uri:
-        -
-      anonymous-uri:
-        -
+---
+#spring:
+#  session:
+#    timeout: ${app.security.session.expires-in}
