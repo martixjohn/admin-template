@@ -1,8 +1,10 @@
 package com.example.demo.common.pojo.service;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -13,6 +15,7 @@ import java.util.Objects;
  * @description
  * @time 2025/4/26
  */
+@Slf4j
 @Getter
 @Setter
 public class BaseDTO implements Serializable {
@@ -41,6 +44,7 @@ public class BaseDTO implements Serializable {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         BaseDTO baseDTO = (BaseDTO) o;
+        log.info("baseDTO.equals: {}", baseDTO);
         return Objects.equals(id, baseDTO.id);
     }
 

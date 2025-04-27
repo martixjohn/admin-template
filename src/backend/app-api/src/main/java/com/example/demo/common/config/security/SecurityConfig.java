@@ -110,6 +110,7 @@ public class SecurityConfig {
                             .accessDeniedHandler(accessDeniedHandler);
                 })
                 .sessionManagement(cfg -> {
+//                    cfg.requireExplicitAuthenticationStrategy(true);
 //                    cfg.addSessionAuthenticationStrategy(sessionAuthenticationStrategy());
                     cfg.invalidSessionStrategy(invalidSessionStrategy);
                     cfg.maximumSessions(appSecurityProperties.getSession().getMaximumSessions());
@@ -184,8 +185,8 @@ public class SecurityConfig {
     @Bean
     SecurityContextRepository securityContextRepository() {
         return new DelegatingSecurityContextRepository(
+                new RequestAttributeSecurityContextRepository(),
                 new HttpSessionSecurityContextRepository()
-//                new RequestAttributeSecurityContextRepository()
         );
     }
 
