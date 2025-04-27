@@ -2,6 +2,7 @@ package com.example.demo.common.exceptionhandler;
 
 import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.response.ApiResponse;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.web.HttpMediaTypeException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +16,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * @time 2025/4/27 19:50
  */
 @RestControllerAdvice
+@Order(1)
 public class WebMVCExceptionHandler {
     @ExceptionHandler(exception = HttpMessageConversionException.class)
     public ApiResponse<Void> handleHttpMessageException(Exception ex) {

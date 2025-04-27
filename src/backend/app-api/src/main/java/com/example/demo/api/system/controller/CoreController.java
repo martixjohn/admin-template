@@ -49,6 +49,4 @@ public class CoreController {
     public ApiResponse<Authentication> info(Authentication authentication) {
         return ApiResponse.success(authentication);
     }
-
-
 }

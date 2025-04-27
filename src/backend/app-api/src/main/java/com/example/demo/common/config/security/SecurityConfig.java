@@ -5,6 +5,7 @@ import com.example.demo.common.annotation.AnonymousAuthentication;
 import com.example.demo.common.annotation.PermitAllAuthentication;
 import com.example.demo.common.auth.Authorities;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,16 +31,22 @@ import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
-import org.springframework.security.web.authentication.logout.HeaderWriterLogoutHandler;
-import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.*;
+import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.ConcurrentSessionControlAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionFixationProtectionStrategy;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.*;
 import org.springframework.security.web.header.writers.ClearSiteDataHeaderWriter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.session.InvalidSessionStrategy;
+import org.springframework.security.web.session.SessionInformationExpiredEvent;
+import org.springframework.security.web.session.SessionInformationExpiredStrategy;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -46,6 +55,7 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,44 +75,25 @@ public class SecurityConfig {
     private final AppSecurityProperties appSecurityProperties;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
-                                                   CustomAccessDeniedHandler accessDeniedHandler,
-                                                   CustomAuthenticationEntryPoint authenticationEntryPoint,
-                                                   CustomInvalidSessionStrategy invalidSessionStrategy, LogoutSuccessHandler logoutSuccessHandler, CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler, CustomAuthenticationFailureHandler customAuthenticationFailureHandler) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
+                                            CustomAccessDeniedHandler accessDeniedHandler,
+                                            CustomAuthenticationEntryPoint authenticationEntryPoint,
+                                            CustomInvalidSessionStrategy invalidSessionStrategy, CustomCsrfTokenRequestHandler customCsrfTokenRequestHandler) throws Exception {
         httpSecurity
                 .cors(cfg -> {
                     cfg.configurationSource(corsConfigurationSource());
                 })
-                .csrf(AbstractHttpConfigurer::disable)// 临时
+                .csrf(cfg -> {
+                    // 显式设置HttpSessionCsrfTokenRepository
+                    cfg.csrfTokenRepository(csrfTokenRepository());
+                    cfg.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
+                    // 所有请求都需要携带CSRF Token
+                    cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"));
+                    // 忽略登录请求
+                    cfg.ignoringRequestMatchers("/login");
+                })
                 .logout(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-//                .rememberMe(cfg -> {
-//                    cfg.rememberMeCookieName("REMEMBER_ME");
-//                    cfg.tokenValiditySeconds(1);
-////                    cfg.rememberMeServices(new TokenBasedRememberMeServices())
-//                })
-
-//                .logout(cfg -> {
-//                    cfg.logoutUrl("/logout").permitAll()
-//                            .logoutSuccessHandler(logoutSuccessHandler);
-//                    cfg.addLogoutHandler(
-//                                    new HeaderWriterLogoutHandler(
-//                                            new ClearSiteDataHeaderWriter(ClearSiteDataHeaderWriter.Directive.ALL)
-//                                    )
-//                            )
-//                            .addLogoutHandler(new CookieClearingLogoutHandler("JSESSIONID"))
-//                    ;
-//                })
-
-//                .formLogin(cfg -> {
-//                    cfg.loginProcessingUrl("/login").permitAll()
-//                            .usernameParameter("username")
-//                            .passwordParameter("password")
-//                            .successHandler(customAuthenticationSuccessHandler)
-//                            .failureHandler(customAuthenticationFailureHandler)
-//                    ;
-//                })
-//                .requestCache(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(cfg -> {
                     configureAuthorities(cfg);
                     cfg.dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll();
@@ -119,13 +110,12 @@ public class SecurityConfig {
                             .accessDeniedHandler(accessDeniedHandler);
                 })
                 .sessionManagement(cfg -> {
-                    cfg.maximumSessions(appSecurityProperties.getSession().getMaximumSessions())
-                            .maxSessionsPreventsLogin(false);
-//                            .expiredSessionStrategy(invalidSessionStrategy);
-//                            .sessionRegistry();
+//                    cfg.addSessionAuthenticationStrategy(sessionAuthenticationStrategy());
                     cfg.invalidSessionStrategy(invalidSessionStrategy);
+                    cfg.maximumSessions(appSecurityProperties.getSession().getMaximumSessions());
                 })
         ;
+
 
         log.debug("Spring Security配置完成");
         return httpSecurity.build();
@@ -133,7 +123,7 @@ public class SecurityConfig {
 
     // 跨域配置
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedOriginPatterns(List.of("*"));
@@ -142,9 +132,27 @@ public class SecurityConfig {
         return source;
     }
 
+    @Bean
+    CsrfTokenRepository csrfTokenRepository() {
+        // 显式设置
+        HttpSessionCsrfTokenRepository httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        httpSessionCsrfTokenRepository.setHeaderName("X-CSRF-TOKEN");
+        return httpSessionCsrfTokenRepository;
+    }
+
+    // 登出处理
+    @Bean
+    LogoutHandler logoutHandler() {
+        SecurityContextLogoutHandler securityContextLogoutHandler = new SecurityContextLogoutHandler();
+        securityContextLogoutHandler.setSecurityContextRepository(securityContextRepository());
+        HeaderWriterLogoutHandler headerWriterLogoutHandler = new HeaderWriterLogoutHandler(new ClearSiteDataHeaderWriter(ClearSiteDataHeaderWriter.Directive.ALL));
+        CookieClearingLogoutHandler cookieClearingLogoutHandler = new CookieClearingLogoutHandler("JSESSIONID");
+        return new CompositeLogoutHandler(securityContextLogoutHandler, headerWriterLogoutHandler, cookieClearingLogoutHandler);
+    }
+
     // 密码加密
     @Bean
-    public PasswordEncoder passwordEncoder() {
+    PasswordEncoder passwordEncoder() {
         // 主要使用的加密算法
         String encodingId = "bcrypt";
         Map<String, PasswordEncoder> encoders = new HashMap<>();
@@ -155,28 +163,35 @@ public class SecurityConfig {
         return new DelegatingPasswordEncoder(encodingId, encoders);
     }
 
+    // 认证配置，主要用于注入
     @Bean
-    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService) {
+    AuthenticationManager authenticationManager(UserDetailsService userDetailsService) {
+        // 用于处理UserDetails, UsernamePasswordAuthenticationToken
         DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
         // 自动装配，非显式设置
         daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
         daoAuthenticationProvider.setUserDetailsService(userDetailsService);
-        return new ProviderManager(daoAuthenticationProvider);
+        // UsernameNotFoundExceptions -> BadCredentialsException
+        daoAuthenticationProvider.setHideUserNotFoundExceptions(true);
+        ProviderManager providerManager = new ProviderManager(daoAuthenticationProvider);
+        // 认证后自动清除密码
+        providerManager.setEraseCredentialsAfterAuthentication(true);
+        return providerManager;
     }
 
 
-    // 存储SecurityContext
+    // 临时存储/持久化SecurityContext
     @Bean
-    public SecurityContextRepository securityContextRepository() {
+    SecurityContextRepository securityContextRepository() {
         return new DelegatingSecurityContextRepository(
-                new HttpSessionSecurityContextRepository(),
-                new RequestAttributeSecurityContextRepository()
+                new HttpSessionSecurityContextRepository()
+//                new RequestAttributeSecurityContextRepository()
         );
     }
 
     // 角色层次结构
     @Bean
-    public RoleHierarchy roleHierarchy() {
+    RoleHierarchy roleHierarchy() {
         return RoleHierarchyImpl.withRolePrefix("ROLE_")
                 .role(Authorities.ROLE_SUPER_ADMIN).implies(Authorities.ROLE_ADMIN)
                 .role(Authorities.ROLE_ADMIN).implies(Authorities.ROLE_USER)
@@ -193,10 +208,25 @@ public class SecurityConfig {
 
     // 为了识别Session生命周期
     @Bean
-    public HttpSessionEventPublisher httpSessionEventPublisher() {
+    HttpSessionEventPublisher httpSessionEventPublisher() {
         return new HttpSessionEventPublisher();
     }
 
+
+//    @Bean
+//    SessionAuthenticationStrategy sessionAuthenticationStrategy() {
+////        SessionFixationProtectionStrategy sessionFixationProtection = new SessionFixationProtectionStrategy();
+//
+//        ConcurrentSessionControlAuthenticationStrategy concurrentSessionControl = new ConcurrentSessionControlAuthenticationStrategy(sessionRegistry());
+//        concurrentSessionControl.setMaximumSessions(appSecurityProperties.getSession().getMaximumSessions());
+//
+//        return new CompositeSessionAuthenticationStrategy(List.of(concurrentSessionControl));
+//    }
+
+//    @Bean
+//    SessionRegistry sessionRegistry() {
+//        return new SessionRegistryImpl();
+//    }
 
     /**
      * 配置anonymous和permitAll

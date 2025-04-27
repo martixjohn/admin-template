@@ -13,7 +13,7 @@ app:
     enable-init: false
   security:
     session:
-      expires-in: 1s
+      expires-in: 30m
       maximum-sessions: 1
     authorization:
       permit-all-uri:
@@ -67,5 +67,4 @@ server:
   error:
     whitelabel:
       enabled: false
-
 

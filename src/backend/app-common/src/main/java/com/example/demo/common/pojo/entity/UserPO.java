@@ -1,8 +1,9 @@
 package com.example.demo.common.pojo.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 
@@ -13,8 +14,9 @@ import java.time.LocalDateTime;
  * @description
  * @time 2025/4/21 22:00
  */
-@EqualsAndHashCode(callSuper = true)
-@Data
+@Getter
+@Setter
+@ToString
 @TableName("user")
 public class UserPO extends BasePO {
     // 用户名

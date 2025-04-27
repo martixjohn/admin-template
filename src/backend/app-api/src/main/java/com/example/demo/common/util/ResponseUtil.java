@@ -1,20 +1,13 @@
 package com.example.demo.common.util;
 
-import cn.hutool.extra.spring.SpringUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.security.web.header.writers.ClearSiteDataHeaderWriter;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.io.IOException;
 
@@ -47,7 +40,7 @@ public class ResponseUtil {
      * @param request  请求
      * @param response 响应
      */
-    public static void clearAllSiteData(HttpServletRequest request, HttpServletResponse response) {
+    public static void clearAllCookiesAndSiteData(HttpServletRequest request, HttpServletResponse response) {
         assert request != null;
         assert response != null;
         /*清除cookie*/

@@ -2,7 +2,7 @@ package com.example.demo.api.user.controller;
 
 import com.example.demo.api.user.request.UserChangePasswordRequest;
 import com.example.demo.api.user.response.UserSafeVO;
-import com.example.demo.api.user.request.UserRegisterWithRoleRequest;
+import com.example.demo.api.user.request.UserAddRequest;
 import com.example.demo.common.annotation.PermitAllAuthentication;
 import com.example.demo.common.auth.Authorities;
 import com.example.demo.common.pojo.service.User;
@@ -10,11 +10,15 @@ import com.example.demo.common.response.ApiResponse;
 import com.example.demo.service.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -31,6 +35,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "用户管理")
 public class UserController {
     private final UserService userService;
+    private final LogoutHandler logoutHandler;
 
     @Operation(summary = "检查是否登录")
     @PermitAllAuthentication
@@ -50,15 +55,20 @@ public class UserController {
 
 
     @Secured({Authorities.ROLE_ADMIN})
-    @PostMapping("/register-with-role")
-    public ApiResponse<Void> registerWithRole(@RequestBody UserRegisterWithRoleRequest registerRequest) {
+    @PostMapping("/add")
+    public ApiResponse<Void> addUser(@RequestBody UserAddRequest registerRequest) {
         userService.addUser(registerRequest.username(), registerRequest.password(), registerRequest.role());
         return ApiResponse.success();
     }
 
     @PutMapping("/change-password")
-    public ApiResponse<Void> changePassword(@RequestBody UserChangePasswordRequest changePasswordRequest) {
+    public ApiResponse<Void> changePassword(@RequestBody UserChangePasswordRequest changePasswordRequest,
+                                            HttpServletRequest request,
+                                            HttpServletResponse response,
+                                            Authentication authentication) {
         userService.changePassword(changePasswordRequest.oldPassword(), changePasswordRequest.newPassword());
+        // 所有都下线
+        logoutHandler.logout(request, response, authentication);
         return ApiResponse.success();
     }
 

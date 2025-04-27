@@ -1,7 +1,9 @@
 package com.example.demo.common.pojo.service;
 
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -10,7 +12,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -18,7 +19,9 @@ import java.util.Set;
  * @description
  * @time 2025/4/23 11:01
  */
-@Data
+@Getter
+@Setter
+@ToString
 @EqualsAndHashCode(callSuper = true)
 public class User extends BaseDTO implements CredentialsContainer, UserDetails {
     // 用户名

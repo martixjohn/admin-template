@@ -19,20 +19,17 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @Slf4j
 @RestControllerAdvice
-@Order(Ordered.LOWEST_PRECEDENCE)
+@Order(100)
 public class GlobalExceptionHandler {
-    /**
-     * 保底异常
-     */
+
+    // 全局保底异常
     @ExceptionHandler(Exception.class)
     public ApiResponse<Void> handleFallback(Exception ex) {
         log.warn("全局异常: ", ex);
         return ApiResponse.failure(ExceptionCode.INTERNAL_SERVER_ERROR);
     }
 
-    /**
-     * 处理业务异常
-     */
+    // 处理业务异常
     @ExceptionHandler(AppServiceException.class)
     public ApiResponse<Void> handleAppServiceException(AppServiceException ex) {
         int code = ex.getCode();
@@ -40,5 +37,4 @@ public class GlobalExceptionHandler {
         log.info("返回异常: code={} msg={}", code, msg);
         return ApiResponse.failure(code, msg);
     }
-
 }

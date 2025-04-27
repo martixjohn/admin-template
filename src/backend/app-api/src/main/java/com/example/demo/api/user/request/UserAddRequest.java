@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @description
  * @time 2025/4/27 17:13
  */
-public record UserRegisterWithRoleRequest(
+public record UserAddRequest(
         @Schema(description = "用户名")
         String username,
         @Schema(description = "密码")

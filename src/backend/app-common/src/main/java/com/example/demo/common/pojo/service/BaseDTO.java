@@ -1,17 +1,20 @@
 package com.example.demo.common.pojo.service;
 
-import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * @author martix
  * @description
  * @time 2025/4/26
  */
-@Data
+@Getter
+@Setter
 public class BaseDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -33,4 +36,16 @@ public class BaseDTO implements Serializable {
 
     // 更新者
     protected Long updatedBy;
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        BaseDTO baseDTO = (BaseDTO) o;
+        return Objects.equals(id, baseDTO.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
 }

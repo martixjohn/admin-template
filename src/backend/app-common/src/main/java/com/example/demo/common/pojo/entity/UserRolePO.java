@@ -1,8 +1,9 @@
 package com.example.demo.common.pojo.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 /**
  * 用户权限关联表
@@ -11,8 +12,9 @@ import lombok.EqualsAndHashCode;
  * @description 关联表
  * @time 2025/4/23 11:21
  */
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@ToString
 @TableName("user_role")
 public class UserRolePO extends BasePO {
     public Long userId;

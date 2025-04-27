@@ -3,15 +3,17 @@ package com.example.demo.common.config.security;
 import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.common.util.ResponseUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.session.InvalidSessionStrategy;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.CharacterEncodingFilter;
 
 import java.io.IOException;
 
@@ -22,15 +24,20 @@ import java.io.IOException;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class CustomInvalidSessionStrategy implements InvalidSessionStrategy {
+
+    private final LogoutHandler logoutHandler;
+    private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
 
     @Override
     public void onInvalidSessionDetected(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         log.info("检测到无效session");
-        ResponseUtil.clearAllSiteData(request, response);
+        Authentication authentication = securityContextHolderStrategy.getContext().getAuthentication();
+        logoutHandler.logout(request, response, authentication);
 
         ResponseUtil.writeJSONWithDefaultEncoding(response,
-                ApiResponse.failure(ExceptionCode.BAD_REQUEST, "无效session"));
+                ApiResponse.failure(ExceptionCode.BAD_REQUEST, "会话已经失效"));
 
     }
 
