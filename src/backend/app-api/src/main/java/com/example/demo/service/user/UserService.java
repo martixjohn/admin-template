@@ -1,7 +1,6 @@
 package com.example.demo.service.user;
 
 import com.example.demo.common.pojo.service.User;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.Set;
@@ -11,7 +10,6 @@ import java.util.Set;
  * @description
  * @time 2025/4/25
  */
-@Transactional(rollbackFor = Exception.class)
 public interface UserService {
 
     /**
@@ -32,38 +30,25 @@ public interface UserService {
      */
     Set<String> getPermissionsByRole(String role);
 
-    /**
-     * 登录
-     *
-     * @param username   用户名
-     * @param password   密码
-     * @description 失败抛出异常
-     */
-    void login(String username, String password);
-
-//    /**
-//     * 登出当前用户
-//     *
-//     * @description 失败抛出异常
-//     */
-//    void logout();
 
     /**
-     * 注册
+     * 添加用户
      *
      * @param username 用户名
      * @param password 密码
      * @param role     角色，不带前缀如ROLE_
      * @description 失败抛出异常
      */
-    void register(String username, String password, String role);
+    void addUser(String username, String password, String role);
 
     /**
      * 改变密码
      *
+     * @param oldPassword 旧密码
      * @param newPassword 新密码
      */
-    void changePassword(String newPassword);
+
+    void changePassword(String oldPassword, String newPassword);
 
     /**
      * 用户名是否合法
@@ -80,4 +65,12 @@ public interface UserService {
      * @return 是否合法
      */
     boolean validatePassword(String password);
+
+    /**
+     * 检查用户名密码合法性，非法抛出异常
+     *
+     * @param username 用户名
+     * @param password 密码
+     */
+    void checkValidUsernameAndPassword(String username, String password);
 }

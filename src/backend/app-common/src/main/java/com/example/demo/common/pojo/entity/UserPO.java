@@ -33,10 +33,10 @@ public class UserPO extends BasePO {
     private String avatarServerPath;
 
     // 用户是否被封锁
-    private Boolean accountLocked;
+    private Boolean accountLocked = false;
 
     // 用户是否被禁用
-    private Boolean disabled;
+    private Boolean disabled = false;
 
     // 上一次登录时间
     private LocalDateTime lastLoginTime;

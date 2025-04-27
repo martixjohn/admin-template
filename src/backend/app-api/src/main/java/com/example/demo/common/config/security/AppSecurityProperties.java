@@ -89,7 +89,7 @@ public class AppSecurityProperties {
     public static class Session {
 
         /**
-         * 会话过期时间
+         * 会话过期时间，最少1分钟
          */
         private Duration expiresIn = Duration.ofMinutes(30);
 

@@ -3,6 +3,7 @@ package com.example.demo.common.pojo.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -11,7 +12,10 @@ import java.time.LocalDateTime;
  * @time 2025/4/23 10:09
  */
 @Data
-public class BasePO {
+public class BasePO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     @TableId(type = IdType.AUTO)
     protected Long id;
 
@@ -26,7 +30,7 @@ public class BasePO {
 
     // 是否删除（软删除）
     @TableLogic(value = "0", delval = "1")
-    protected Boolean deleted;
+    protected Boolean deleted = false;
 
     // 描述信息
     protected String description;

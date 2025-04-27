@@ -1,6 +1,7 @@
 package com.example.demo.service.user.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.demo.common.config.security.AppSecurityProperties;
@@ -13,29 +14,21 @@ import com.example.demo.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
-import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -56,9 +49,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     private final RolePermissionMapper rolePermissionMapper;
     private final PermissionMapper permissionMapper;
     private final PasswordEncoder passwordEncoder;
-    private final ObjectFactory<AuthenticationManager> authenticationManager;
-    private final SecurityContextRepository securityContextRepository;
-//    private final List<LogoutHandler> logoutHandlers;
+    private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
     // 用户名匹配
     private Pattern USERNAME_PATTERN;
     // 密码匹配
@@ -78,7 +69,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
 
     @Override
     public Optional<User> getFullInfoByUsername(String username) {
-        if (username == null || username.isEmpty()) {
+        if (StrUtil.isBlank(username)) {
             return Optional.empty();
         }
         User res = new User();
@@ -135,40 +126,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         return getPermissionByRoleId(rolePO.getId());
     }
 
-    @Override
-    public void login(String username, String password) {
-        checkValidUsernameAndPassword(username, password);
-        log.info("登录用户名：{}    密码：{}", username, password);
-        Authentication unauthenticated = UsernamePasswordAuthenticationToken.unauthenticated(username, password);
-        // 内部 loadUserByUsername
-        Authentication authentication = authenticationManager.getObject().authenticate(unauthenticated);
-        // 此处登录成功
-        // 记录登录时间
-        userMapper.update(Wrappers.<UserPO>lambdaUpdate()
-                .eq(UserPO::getUsername, username)
-                .set(UserPO::getLastLoginTime, LocalDateTime.now()));
-        // TODO 设置过期时间
-        // 内部使用SecurityContextStrategy
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-        // 保存
-        securityContextRepository.saveContext(context, requestAttributes.getRequest(), requestAttributes.getResponse());
-    }
 
-//    @Override
-//    public void logout() {
-//        log.info("用户尝试登出: {}", SecurityContextHolder.getContext().getAuthentication());
-//        for (LogoutHandler logoutHandler : logoutHandlers) {
-//            ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            logoutHandler.logout(requestAttributes.getRequest(), requestAttributes.getResponse(), authentication);
-//        }
-//    }
-
+    @Transactional(rollbackFor = Exception.class)
     @Override
-    public void register(String username, String password, String role) {
+    public void addUser(String username, String password, String role) {
         checkValidUsernameAndPassword(username, password);
 
         boolean present = getFullInfoByUsername(username).isPresent();
@@ -179,19 +140,39 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         if (rolePO == null) {
             throw new AppServiceException(ExceptionCode.BAD_REQUEST, "非法的角色名");
         }
-        // TODO 校验是否有权限注册
 
+        // 插入用户
         String encodedPassword = passwordEncoder.encode(password);
         UserPO userPO = new UserPO();
         userPO.setUsername(username);
         userPO.setPassword(encodedPassword);
-
         userMapper.insert(userPO);
+
+        // 插入关联表
+        UserRolePO userRolePO = new UserRolePO();
+        userRolePO.setUserId(userPO.getId());
+        userRolePO.setRoleId(rolePO.getId());
+        userRoleMapper.insert(userRolePO);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
-    public void changePassword(String newPassword) {
-        // TODO 改变密码
+    public void changePassword(String oldPassword, String newPassword) {
+        if (!validatePassword(newPassword) || !validatePassword(oldPassword)) {
+            throw new AppServiceException(ExceptionCode.BAD_REQUEST, "密码规则不正确，应当符合" + PASSWORD_PATTERN);
+        }
+        Authentication authentication = securityContextHolderStrategy.getContext().getAuthentication();
+        User principal = (User) authentication.getPrincipal();
+        String username = principal.getUsername();
+        UserPO userPO = userMapper.selectOne(Wrappers.<UserPO>lambdaQuery().eq(UserPO::getUsername, username));
+        String password = userPO.getPassword();
+        // 比对
+        if (!passwordEncoder.matches(oldPassword, password)) {
+            throw new AppServiceException(ExceptionCode.BAD_REQUEST, "密码不正确");
+        }
+        // 设置新密码
+        userPO.setPassword(passwordEncoder.encode(newPassword));
+        userMapper.updateById(userPO);
     }
 
     @Override
@@ -226,7 +207,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     }
 
     // 检查用户名密码合法性，非法抛出异常
-    private void checkValidUsernameAndPassword(String username, String password) {
+    @Override
+    public void checkValidUsernameAndPassword(String username, String password) {
 
         final String usernameMsg = "用户名不符合规则" + USERNAME_PATTERN;
         final String passwordMsg = "密码不符合规则" + PASSWORD_PATTERN;
@@ -244,6 +226,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
      */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        log.info("loadUserByUsername: {}", username);
         return getFullInfoByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户 " + username + " 找不到"));
     }

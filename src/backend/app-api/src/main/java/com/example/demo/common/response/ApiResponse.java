@@ -44,6 +44,10 @@ public class ApiResponse<T> {
         return success(null);
     }
 
+    public static ApiResponse<Void> failure(ExceptionCode expCode, String msg) {
+        return new ApiResponse<>(expCode.getCode(), msg, null);
+    }
+
     public static ApiResponse<Void> failure(int code, String msg) {
         return new ApiResponse<>(code, msg, null);
     }

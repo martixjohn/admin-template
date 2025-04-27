@@ -3,6 +3,7 @@ package com.example.demo.common.pojo.service;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -11,7 +12,9 @@ import java.time.LocalDateTime;
  * @time 2025/4/26
  */
 @Data
-public class BaseDTO {
+public class BaseDTO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     // 对应数据库id
     protected Long id;

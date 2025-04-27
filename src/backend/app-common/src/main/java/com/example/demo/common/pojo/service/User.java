@@ -2,6 +2,7 @@ package com.example.demo.common.pojo.service;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,7 +20,7 @@ import java.util.Set;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class User extends BaseDTO implements UserDetails {
+public class User extends BaseDTO implements CredentialsContainer, UserDetails {
     // 用户名
     private String username;
 
@@ -42,18 +43,33 @@ public class User extends BaseDTO implements UserDetails {
     private String avatarServerPath;
 
     // 用户是否被封锁
-    private Boolean accountLocked;
+    private boolean accountLocked;
 
     // 用户是否被禁用
-    private Boolean disabled;
+    private boolean disabled;
 
     // 上一次登录时间
     private LocalDateTime lastLoginTime;
 
-    @Override
+
     public Collection<? extends GrantedAuthority> getAuthorities() {
         LinkedList<String> strings = new LinkedList<>(roles);
         strings.addAll(permissions);
         return strings.stream().map(SimpleGrantedAuthority::new).toList();
+    }
+
+    @Override
+    public void eraseCredentials() {
+        password = null;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return !accountLocked;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return !disabled;
     }
 }

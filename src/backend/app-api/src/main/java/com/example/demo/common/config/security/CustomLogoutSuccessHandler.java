@@ -1,6 +1,5 @@
 package com.example.demo.common.config.security;
 
-import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
@@ -21,6 +20,7 @@ import java.io.IOException;
  * @time 2025/4/26 22:58
  */
 @Component
+@Deprecated
 @Slf4j
 public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
     private final ObjectMapper objectMapper;
@@ -35,7 +35,6 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
     @Override
     public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         log.info("登出成功 {}", authentication);
-//        throw new ServletException("测试异常");
         // 注意：此处不应抛出异常
         String json = objectMapper.writeValueAsString(ApiResponse.success(null, "登出成功"));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

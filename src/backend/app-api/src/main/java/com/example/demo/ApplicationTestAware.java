@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.env.Environment;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
 import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.CharacterEncodingFilter;
@@ -25,5 +29,10 @@ public class ApplicationTestAware implements ApplicationContextAware {
 
         AppSecurityProperties bean = applicationContext.getBean(AppSecurityProperties.class);
         log.info("读取配置: {}", bean);
+
+//        AbstractAuthenticationProcessingFilter filter = applicationContext.getBean(AbstractAuthenticationProcessingFilter.class);
+//        log.info("AbstractAuthenticationProcessingFilter: {}", filter);
+//        RememberMeAuthenticationFilter rememberMeAuthenticationFilter = applicationContext.getBean(RememberMeAuthenticationFilter.class);
+//        log.info("remember-me authentication filter: {}", rememberMeAuthenticationFilter);
     }
 }

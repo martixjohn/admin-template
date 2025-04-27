@@ -2,13 +2,13 @@ spring:
   application:
     name: Admin
     version: 1.0
-
-  datasource:
-    url: jdbc:mariadb://127.0.0.1:3306/db_test
-    username: root
-    password: root
+  # 所有前端序列化数据
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
 
 app:
+  common:
+    charset: UTF-8
   db:
     enable-init: false
   security:
@@ -23,6 +23,14 @@ app:
         - GET /webjars/**
       anonymous-uri:
 
+---
+# 数据库相关
+spring:
+  datasource:
+    url: jdbc:mariadb://127.0.0.1:3306/db_test
+    username: root
+    password: root
+---
 
 # springdoc-openapi项目配置
 springdoc:
@@ -48,17 +56,16 @@ mybatis-plus:
   type-aliases-package: com.example.demo.**.pojo
   mapper-locations: classpath*:com/example/demo/repository/mapper/mapper/**/*.xml
 
+
 server:
   servlet:
     encoding:
-      charset: UTF-8
+      charset: ${app.common.charset}
     session:
       store-dir: ./target/session-dir
+      timeout: ${app.security.session.expires-in}
   error:
     whitelabel:
       enabled: false
 
----
-#spring:
-#  session:
-#    timeout: ${app.security.session.expires-in}
+

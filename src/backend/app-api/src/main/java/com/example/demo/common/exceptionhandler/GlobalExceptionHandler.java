@@ -4,8 +4,13 @@ import com.example.demo.common.exception.AppServiceException;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.common.exception.ExceptionCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.converter.HttpMessageConversionException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * @author martix
@@ -14,6 +19,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @Slf4j
 @RestControllerAdvice
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class GlobalExceptionHandler {
     /**
      * 保底异常
@@ -34,4 +40,5 @@ public class GlobalExceptionHandler {
         log.info("返回异常: code={} msg={}", code, msg);
         return ApiResponse.failure(code, msg);
     }
+
 }
