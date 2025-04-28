@@ -1,4 +1,4 @@
-package com.example.demo.common.config.security;
+package com.example.demo.common.config.security.session;
 
 import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.response.ApiResponse;
@@ -20,7 +20,7 @@ import java.io.IOException;
 /**
  * @author martix
  * @description
- * @time 2025/4/27 9:37
+ * @time 2025/4/27
  */
 @Slf4j
 @Component
@@ -32,12 +32,12 @@ public class CustomInvalidSessionStrategy implements InvalidSessionStrategy {
 
     @Override
     public void onInvalidSessionDetected(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        log.info("检测到无效session");
         Authentication authentication = securityContextHolderStrategy.getContext().getAuthentication();
+        log.info("检测到无效session：authentication={}", authentication);
         logoutHandler.logout(request, response, authentication);
 
         ResponseUtil.writeJSONWithDefaultEncoding(response,
-                ApiResponse.failure(ExceptionCode.BAD_REQUEST, "会话已经失效"));
+                ApiResponse.failure(ExceptionCode.BAD_REQUEST, "会话无效"));
 
     }
 

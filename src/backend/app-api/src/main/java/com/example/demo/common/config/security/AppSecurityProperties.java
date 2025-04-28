@@ -10,27 +10,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 权限配置文件
+ * 安全相关配置文件
  *
  * @author martix
  * @description
- * @time 2025/4/22 22:31
+ * @time 2025/4/22
  */
 @ConfigurationProperties(prefix = "app.security")
 @Component
 @Data
 public class AppSecurityProperties {
 
-
-//    /**
-//     * token/jwt 密钥
-//     */
-//    private String tokenSecret = "1dfvh29834nvfhf0asif-f&";
-//
-//    /**
-//     * token/jwt 签发者
-//     */
-//    private String tokenIssuer = "123";
 
     private Authorization authorization = new Authorization();
 
@@ -97,21 +87,5 @@ public class AppSecurityProperties {
          * 用户最大会话数量，超过会导致旧会话失效
          */
         private int maximumSessions = 1;
-//        /**
-//         * Session存储位置
-//         */
-//        private SessionStorageLocation storageLocation;
-//
-//        public enum SessionStorageLocation {
-//            /**
-//             * 数据库
-//             */
-//            DB,
-//            /**
-//             * HTTP Session，内存
-//             */
-//            HTTP
-//            ;
-//        }
     }
 }

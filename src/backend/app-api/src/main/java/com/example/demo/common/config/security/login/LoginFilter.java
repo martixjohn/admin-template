@@ -23,15 +23,21 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 
 /**
+ * 登录filter
+ *
  * @author martix
  * @description
- * @time 2025/4/28 18:09
+ * @time 2025/4/28
  */
 @Component
 @Slf4j
@@ -42,21 +48,19 @@ public class LoginFilter extends AbstractAuthenticationProcessingFilter {
     private final UserService userService;
 
     public LoginFilter(ObjectMapper objectMapper, UserService userService) {
-        super("/login");
+        super(new AntPathRequestMatcher("/login", "POST"));
         this.objectMapper = objectMapper;
         this.userService = userService;
     }
 
-
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException, IOException, ServletException {
-        if (!"POST".equals(request.getMethod())) {
-            throw new AuthenticationServiceException("Unsupported HTTP method: " + request.getMethod());
-        }
+
         String contentType = request.getContentType();
         if (!MediaType.valueOf(contentType).equals(MediaType.APPLICATION_JSON)) {
             throw new AuthenticationServiceException("Unsupported content type: " + contentType);
         }
+        // 反序列化请求体
         BufferedReader reader = request.getReader();
         UserLoginRequest userLoginRequest = null;
         try {
@@ -64,6 +68,7 @@ public class LoginFilter extends AbstractAuthenticationProcessingFilter {
         } catch (Exception e) {
             throw new AuthenticationServiceException(e.getMessage());
         }
+        // 校验用户名密码的合法性
         String username = userLoginRequest.username();
         String password = userLoginRequest.password();
         try {
@@ -71,67 +76,69 @@ public class LoginFilter extends AbstractAuthenticationProcessingFilter {
         } catch (AppServiceException ex) {
             throw new AuthenticationServiceException(ex.getMessage());
         }
+        // 认证
         Authentication authenticate = getAuthenticationManager()
                 .authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, password));
         log.info("Authenticated user: {}", authenticate.getName());
+
         return authenticate;
     }
 
-    /* 以下采取自动注入 */
+    // 自动注入
     @Autowired
     @Override
     public void setAuthenticationManager(AuthenticationManager authenticationManager) {
         super.setAuthenticationManager(authenticationManager);
     }
 
-    @Autowired
-    @Override
-    public void setSessionAuthenticationStrategy(SessionAuthenticationStrategy sessionStrategy) {
-        super.setSessionAuthenticationStrategy(sessionStrategy);
-    }
-
-    @Autowired
-    @Override
-    public void setMessageSource(MessageSource messageSource) {
-        super.setMessageSource(messageSource);
-    }
-
-
+    // 自动注入
     @Autowired
     @Override
     public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
         super.setSecurityContextRepository(securityContextRepository);
     }
 
+    // 自动注入
     @Autowired
     @Override
     public void setAuthenticationSuccessHandler(AuthenticationSuccessHandler successHandler) {
         super.setAuthenticationSuccessHandler(successHandler);
     }
 
+    // 自动注入
     @Autowired
     @Override
     public void setAuthenticationFailureHandler(AuthenticationFailureHandler failureHandler) {
         super.setAuthenticationFailureHandler(failureHandler);
     }
 
-    @Autowired(required = false)
+
     @Override
-    public void setRememberMeServices(RememberMeServices rememberMeServices) {
-        super.setRememberMeServices(rememberMeServices);
+    public void setSessionAuthenticationStrategy(SessionAuthenticationStrategy sessionStrategy) {
+        super.setSessionAuthenticationStrategy(sessionStrategy);
     }
 
-    @Autowired(required = false)
+
+    @Override
+    public void setMessageSource(MessageSource messageSource) {
+        super.setMessageSource(messageSource);
+    }
+
+
     @Override
     public void setApplicationEventPublisher(ApplicationEventPublisher eventPublisher) {
         super.setApplicationEventPublisher(eventPublisher);
     }
 
-    @Autowired(required = false)
     @Override
     public void setAuthenticationDetailsSource(AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource) {
         super.setAuthenticationDetailsSource(authenticationDetailsSource);
     }
 
+
+    @Override
+    public void setRememberMeServices(RememberMeServices rememberMeServices) {
+        super.setRememberMeServices(rememberMeServices);
+    }
 
 }

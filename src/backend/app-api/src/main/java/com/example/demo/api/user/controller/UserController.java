@@ -1,6 +1,7 @@
 package com.example.demo.api.user.controller;
 
 import com.example.demo.api.user.request.UserChangePasswordRequest;
+import com.example.demo.api.user.request.UserRegisterRequest;
 import com.example.demo.api.user.response.UserSafeVO;
 import com.example.demo.api.user.request.UserAddRequest;
 import com.example.demo.common.annotation.PermitAllAuthentication;
@@ -37,8 +38,19 @@ public class UserController {
     private final UserService userService;
     private final LogoutHandler logoutHandler;
 
-    @Operation(summary = "检查是否登录")
     @PermitAllAuthentication
+    @Operation(summary = "用户自行注册")
+    @PostMapping("/register")
+    public ApiResponse<Void> register(@RequestBody UserRegisterRequest request) {
+        String username = request.username();
+        String password = request.password();
+        userService.checkValidUsernameAndPassword(username, password);
+        userService.addUser(username, password, Authorities.ROLE_USER);
+        return ApiResponse.success();
+    }
+
+    @PermitAllAuthentication
+    @Operation(summary = "检查是否登录")
     @GetMapping("/is-login")
     public ApiResponse<Boolean> isLogin(@AuthenticationPrincipal User user) {
         return ApiResponse.success(user != null);
@@ -55,12 +67,14 @@ public class UserController {
 
 
     @Secured({Authorities.ROLE_ADMIN})
+    @Operation(summary = "管理员添加用户")
     @PostMapping("/add")
     public ApiResponse<Void> addUser(@RequestBody UserAddRequest registerRequest) {
         userService.addUser(registerRequest.username(), registerRequest.password(), registerRequest.role());
         return ApiResponse.success();
     }
 
+    @Operation(summary = "改变密码")
     @PutMapping("/change-password")
     public ApiResponse<Void> changePassword(@RequestBody UserChangePasswordRequest changePasswordRequest,
                                             HttpServletRequest request,
@@ -72,7 +86,4 @@ public class UserController {
         return ApiResponse.success();
     }
 
-//    public ApiResponse<List<UserSafeVO>> getUsers() {
-//
-//    }
 }

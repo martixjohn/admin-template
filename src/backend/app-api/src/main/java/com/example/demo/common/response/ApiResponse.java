@@ -30,6 +30,10 @@ public class ApiResponse<T> {
         this.data = data;
     }
 
+    @Schema(description = "是否成功")
+    public boolean isSuccess() {
+        return code == ExceptionCode.SUCCESS.getCode();
+    }
 
     public static <T> ApiResponse<T> success(T data) {
         ExceptionCode success = ExceptionCode.SUCCESS;
