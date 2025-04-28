@@ -16,6 +16,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ApiResponse<T> {
+
     @Schema(description = "错误码")
     private final int code;
     @Schema(description = "错误信息")

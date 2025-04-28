@@ -4,10 +4,12 @@ import cn.hutool.extra.spring.SpringUtil;
 import com.example.demo.common.annotation.AnonymousAuthentication;
 import com.example.demo.common.annotation.PermitAllAuthentication;
 import com.example.demo.common.auth.Authorities;
+import com.example.demo.common.config.security.login.LoginFilter;
+import com.example.demo.common.config.security.logout.CustomLogoutSuccessHandler;
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ServletException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,10 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.*;
-import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
-import org.springframework.security.web.authentication.session.ConcurrentSessionControlAuthenticationStrategy;
-import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
-import org.springframework.security.web.authentication.session.SessionFixationProtectionStrategy;
+import org.springframework.security.web.authentication.session.*;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
@@ -43,9 +42,6 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.*;
 import org.springframework.security.web.header.writers.ClearSiteDataHeaderWriter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.security.web.session.InvalidSessionStrategy;
-import org.springframework.security.web.session.SessionInformationExpiredEvent;
-import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.cors.CorsConfiguration;
@@ -55,11 +51,9 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * @author martix
@@ -75,24 +69,46 @@ public class SecurityConfig {
     private final AppSecurityProperties appSecurityProperties;
 
     @Bean
+    FilterRegistrationBean<LoginFilter> loginFilterFilterRegistrationBean(LoginFilter loginFilter) {
+        FilterRegistrationBean<LoginFilter> filterRegistrationBean = new FilterRegistrationBean<>();
+        filterRegistrationBean.setFilter(loginFilter);
+        filterRegistrationBean.setName("loginFilter");
+        // 防止filter 2次调用
+        filterRegistrationBean.setEnabled(false);
+        return filterRegistrationBean;
+    }
+
+
+    @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
                                             CustomAccessDeniedHandler accessDeniedHandler,
                                             CustomAuthenticationEntryPoint authenticationEntryPoint,
-                                            CustomInvalidSessionStrategy invalidSessionStrategy, CustomCsrfTokenRequestHandler customCsrfTokenRequestHandler) throws Exception {
+                                            CustomInvalidSessionStrategy customInvalidSessionStrategy, LoginFilter loginFilter, CustomLogoutSuccessHandler customLogoutSuccessHandler) throws Exception {
         httpSecurity
+                // 跨域
                 .cors(cfg -> {
                     cfg.configurationSource(corsConfigurationSource());
                 })
-                .csrf(cfg -> {
-                    // 显式设置HttpSessionCsrfTokenRepository
-                    cfg.csrfTokenRepository(csrfTokenRepository());
-                    cfg.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
-                    // 所有请求都需要携带CSRF Token
-                    cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"));
-                    // 忽略登录请求
-                    cfg.ignoringRequestMatchers("/login");
+                .csrf(cfg -> cfg.disable())
+//                // CSRF攻击
+//                .csrf(cfg -> {
+//                    // 显式设置HttpSessionCsrfTokenRepository
+//                    cfg.csrfTokenRepository(csrfTokenRepository());
+//
+//                    // 所有请求都需要携带CSRF Token
+//                    cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"))
+//                            .ignoringRequestMatchers("/login");
+//                    // 忽略所有permitAll
+//                    appSecurityProperties.getAuthorization().getPermitAllUri()
+//                            .stream()
+//                            .map(SecurityConfig::parseHttpMethodAndUriFromPropertiesUri)
+//                            .forEach(e -> cfg.ignoringRequestMatchers(e.realUri()));
+//                })
+                .logout(cfg -> {
+                    cfg.logoutRequestMatcher(new AntPathRequestMatcher("/logout"));
+                    cfg.addLogoutHandler(logoutHandler());
+                    cfg.logoutSuccessHandler(customLogoutSuccessHandler);
                 })
-                .logout(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(cfg -> {
                     configureAuthorities(cfg);
@@ -110,17 +126,28 @@ public class SecurityConfig {
                             .accessDeniedHandler(accessDeniedHandler);
                 })
                 .sessionManagement(cfg -> {
-//                    cfg.requireExplicitAuthenticationStrategy(true);
-//                    cfg.addSessionAuthenticationStrategy(sessionAuthenticationStrategy());
-                    cfg.invalidSessionStrategy(invalidSessionStrategy);
-                    cfg.maximumSessions(appSecurityProperties.getSession().getMaximumSessions());
+//                    cfg.sessionAuthenticationStrategy(concurrentSessionAuthenticationStrategy());
+                    cfg
+//                             并发会话控制
+//                            .sessionConcurrency(concurrency ->
+//                                    concurrency.expiredSessionStrategy(event -> {
+//                                                log.info("会话已超时");
+//                                                event.getResponse().getWriter().write("会话已超时");
+//                                            })
+//                                            .maximumSessions(appSecurityProperties.getSession().getMaximumSessions())
+//                                            .maxSessionsPreventsLogin(false))
+                            .sessionAuthenticationStrategy(sessionAuthenticationStrategy())
+                            .invalidSessionStrategy(customInvalidSessionStrategy);
                 })
         ;
+
+        httpSecurity.addFilterAfter(loginFilter, LogoutFilter.class);
 
 
         log.debug("Spring Security配置完成");
         return httpSecurity.build();
     }
+
 
     // 跨域配置
     @Bean
@@ -164,7 +191,7 @@ public class SecurityConfig {
         return new DelegatingPasswordEncoder(encodingId, encoders);
     }
 
-    // 认证配置，主要用于注入
+    // 认证配置
     @Bean
     AuthenticationManager authenticationManager(UserDetailsService userDetailsService) {
         // 用于处理UserDetails, UsernamePasswordAuthenticationToken
@@ -214,20 +241,29 @@ public class SecurityConfig {
     }
 
 
-//    @Bean
-//    SessionAuthenticationStrategy sessionAuthenticationStrategy() {
-////        SessionFixationProtectionStrategy sessionFixationProtection = new SessionFixationProtectionStrategy();
-//
-//        ConcurrentSessionControlAuthenticationStrategy concurrentSessionControl = new ConcurrentSessionControlAuthenticationStrategy(sessionRegistry());
-//        concurrentSessionControl.setMaximumSessions(appSecurityProperties.getSession().getMaximumSessions());
-//
-//        return new CompositeSessionAuthenticationStrategy(List.of(concurrentSessionControl));
-//    }
+    @Bean
+    SessionAuthenticationStrategy sessionAuthenticationStrategy() {
+//        ChangeSessionIdAuthenticationStrategy changeSessionId = new ChangeSessionIdAuthenticationStrategy();
 
-//    @Bean
-//    SessionRegistry sessionRegistry() {
-//        return new SessionRegistryImpl();
-//    }
+        // 并发控制
+        ConcurrentSessionControlAuthenticationStrategy concurrentSessionControl =
+                new ConcurrentSessionControlAuthenticationStrategy(sessionRegistry());
+        concurrentSessionControl.setMaximumSessions(appSecurityProperties.getSession().getMaximumSessions());
+        // 超过，不抛异常，内部会自动让此前会话无效
+        concurrentSessionControl.setExceptionIfMaximumExceeded(false);
+
+        RegisterSessionAuthenticationStrategy registerSession = new RegisterSessionAuthenticationStrategy(sessionRegistry());
+
+        return new CompositeSessionAuthenticationStrategy(
+                List.of(concurrentSessionControl, registerSession)
+        );
+    }
+
+    @Bean
+    SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+
 
     /**
      * 配置anonymous和permitAll
@@ -249,45 +285,17 @@ public class SecurityConfig {
         List<String> permitAllUri = appSecurityProperties.getAuthorization().getPermitAllUri();
         List<String> anonymousUri = appSecurityProperties.getAuthorization().getAnonymousUri();
 
-        // 临时使用
-        record HttpMethodAndUri(HttpMethod method, String realUri) {
-        }
-
-        //  将文件中的uri信息包装成请求方法和uri
-        Function<String, HttpMethodAndUri> parseHttpMethodAndUri = (String uri) -> {
-            String[] split = uri.split("\\s");
-            if (split.length > 2) {
-                throw new IllegalArgumentException("错误的uri配置：" + uri);
-            }
-            HttpMethod method = null;
-            String realUri = split[0];
-            if (split.length == 2) {
-                method = switch (split[0]) {
-                    case "GET" -> HttpMethod.GET;
-                    case "HEAD" -> HttpMethod.HEAD;
-                    case "POST" -> HttpMethod.POST;
-                    case "PUT" -> HttpMethod.PUT;
-                    case "PATCH" -> HttpMethod.PATCH;
-                    case "DELETE" -> HttpMethod.DELETE;
-                    case "OPTIONS" -> HttpMethod.OPTIONS;
-                    case "TRACE" -> HttpMethod.TRACE;
-                    default -> throw new IllegalArgumentException("错误的请求方法：" + split[0]);
-                };
-                realUri = split[1];
-            }
-            return new HttpMethodAndUri(method, realUri);
-        };
 
         // 仅允许匿名
         for (String uri : anonymousUri) {
-            HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUri.apply(uri);
+            HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUriFromPropertiesUri(uri);
             registry.requestMatchers(httpMethodAndUri.method(), httpMethodAndUri.realUri()).anonymous();
             log.debug("配置匿名访问接口: {}", uri);
         }
 
         // 允许所有
         for (String uri : permitAllUri) {
-            HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUri.apply(uri);
+            HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUriFromPropertiesUri(uri);
             registry.requestMatchers(httpMethodAndUri.method(), httpMethodAndUri.realUri()).permitAll();
             log.debug("配置所有可访问接口: {}", uri);
         }
@@ -322,5 +330,34 @@ public class SecurityConfig {
         });
     }
 
+
+    // 临时使用
+    record HttpMethodAndUri(HttpMethod method, String realUri) {
+    }
+
+    //  将文件中的uri信息包装成请求方法和uri
+    private static HttpMethodAndUri parseHttpMethodAndUriFromPropertiesUri(String uri) {
+        String[] split = uri.split("\\s");
+        if (split.length > 2) {
+            throw new IllegalArgumentException("错误的uri配置：" + uri);
+        }
+        HttpMethod method = null;
+        String realUri = split[0];
+        if (split.length == 2) {
+            method = switch (split[0]) {
+                case "GET" -> HttpMethod.GET;
+                case "HEAD" -> HttpMethod.HEAD;
+                case "POST" -> HttpMethod.POST;
+                case "PUT" -> HttpMethod.PUT;
+                case "PATCH" -> HttpMethod.PATCH;
+                case "DELETE" -> HttpMethod.DELETE;
+                case "OPTIONS" -> HttpMethod.OPTIONS;
+                case "TRACE" -> HttpMethod.TRACE;
+                default -> throw new IllegalArgumentException("错误的请求方法：" + split[0]);
+            };
+            realUri = split[1];
+        }
+        return new HttpMethodAndUri(method, realUri);
+    }
 
 }

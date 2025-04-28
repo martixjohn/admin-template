@@ -1,5 +1,6 @@
 package com.example.demo.service.user;
 
+import com.example.demo.common.exception.AppServiceException;
 import com.example.demo.common.pojo.service.User;
 
 import java.util.Optional;
@@ -71,6 +72,7 @@ public interface UserService {
      *
      * @param username 用户名
      * @param password 密码
+     * @throws AppServiceException 用户名或密码不合法
      */
     void checkValidUsernameAndPassword(String username, String password);
 }

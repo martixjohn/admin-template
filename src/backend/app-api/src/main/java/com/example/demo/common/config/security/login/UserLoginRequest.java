@@ -1,4 +1,4 @@
-package com.example.demo.api.user.request;
+package com.example.demo.common.config.security.login;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
