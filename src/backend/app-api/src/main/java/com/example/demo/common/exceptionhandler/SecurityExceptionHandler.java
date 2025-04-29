@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Order(1)
 @RequiredArgsConstructor
 public class SecurityExceptionHandler {
-    private final LogoutHandler logoutHandler;
 
     // 所有认证失败
     @ExceptionHandler(AuthenticationException.class)

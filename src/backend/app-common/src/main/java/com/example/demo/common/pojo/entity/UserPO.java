@@ -25,6 +25,9 @@ public class UserPO extends BasePO {
     // 密码，hash加密后的
     private String password;
 
+    // 昵称
+    private String nickname;
+
     // 电子邮件
     private String email;
 

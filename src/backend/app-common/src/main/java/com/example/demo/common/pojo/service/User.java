@@ -28,11 +28,8 @@ public class User extends BaseDTO implements CredentialsContainer, UserDetails {
     // 密码，hash加密后的
     private String password;
 
-    // 角色名称
-    private Set<String> roles;
-
-    // 细分权限名称
-    private Set<String> permissions;
+    // 昵称
+    private String nickname;
 
     // 电子邮件
     private String email;
@@ -52,7 +49,13 @@ public class User extends BaseDTO implements CredentialsContainer, UserDetails {
     // 上一次登录时间
     private LocalDateTime lastLoginTime;
 
+    // 角色名称
+    private Set<String> roles;
 
+    // 细分权限名称
+    private Set<String> permissions;
+
+    // 整合permission和role
     public Collection<? extends GrantedAuthority> getAuthorities() {
         LinkedList<String> strings = new LinkedList<>(roles);
         strings.addAll(permissions);

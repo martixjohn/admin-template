@@ -16,11 +16,14 @@ public class UserSafeVO {
     @Schema(description = "用户名")
     private String username;
 
+    @Schema(description = "昵称")
+    private String nickname;
+
     @Schema(description = "电子邮件")
     private String email;
 
     @Schema(description = "头像访问路径")
-    private String avatarServerPath;
+    private String avatar;
 
     @Schema(description = "上一次登录时间")
     private LocalDateTime lastLoginTime;

@@ -21,6 +21,12 @@ import java.util.List;
 @Data
 public class AppSecurityProperties {
 
+    /**
+     * 完全放开的URI
+     * 格式：METHOD URI或者URI
+     */
+    private List<String> fullyOpenUris = new ArrayList<>();
+
 
     private Authorization authorization = new Authorization();
 

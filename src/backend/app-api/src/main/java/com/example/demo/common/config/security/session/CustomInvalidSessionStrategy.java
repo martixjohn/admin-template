@@ -3,6 +3,7 @@ package com.example.demo.common.config.security.session;
 import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.common.util.ResponseUtil;
+import jakarta.annotation.Resource;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 /**
+ * 会话无效策略
  * @author martix
  * @description
  * @time 2025/4/27
@@ -27,7 +29,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class CustomInvalidSessionStrategy implements InvalidSessionStrategy {
 
-    private final LogoutHandler logoutHandler;
+    @Resource
+    private LogoutHandler logoutHandler;
     private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
 
     @Override

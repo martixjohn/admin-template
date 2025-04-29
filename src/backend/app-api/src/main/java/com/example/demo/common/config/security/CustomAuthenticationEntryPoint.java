@@ -24,7 +24,7 @@ import java.io.IOException;
  *
  * @author martix
  * @description
- * @time 2025/4/24 13:31
+ * @time 2025/4/24
  */
 @Component
 @Slf4j

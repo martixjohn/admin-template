@@ -36,12 +36,12 @@ export type setType = {
   hiddenSideBar: boolean;
 };
 
-export type userType = {
+export type UserType = {
   avatar?: string;
   username?: string;
   nickname?: string;
   roles?: Array<string>;
   permissions?: Array<string>;
   isRemembered?: boolean;
-  loginDay?: number;
+  // loginDay?: number;
 };

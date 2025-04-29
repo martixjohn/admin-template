@@ -1,7 +1,7 @@
 import { http } from "@/utils/http";
+import type { BaseResult, VoidResult } from "@/api/types";
 
-export type UserResult = {
-  success: boolean;
+export interface UserResult extends BaseResult<any> {
   data: {
     /** 头像 */
     avatar: string;
@@ -14,32 +14,55 @@ export type UserResult = {
     /** 按钮级别权限 */
     permissions: Array<string>;
     /** `token` */
-    accessToken: string;
+    // accessToken: string;
     /** 用于调用刷新`accessToken`的接口时所需的`token` */
-    refreshToken: string;
+    // refreshToken: string;
     /** `accessToken`的过期时间（格式'xxxx/xx/xx xx:xx:xx'） */
-    expires: Date;
+    // expires: Date;
   };
-};
+}
 
-export type RefreshTokenResult = {
-  success: boolean;
+export interface LoginResult extends BaseResult<any> {
   data: {
-    /** `token` */
-    accessToken: string;
-    /** 用于调用刷新`accessToken`的接口时所需的`token` */
-    refreshToken: string;
-    /** `accessToken`的过期时间（格式'xxxx/xx/xx xx:xx:xx'） */
-    expires: Date;
+    /* CSRF保护token */
+    csrfToken: string;
   };
-};
+}
+
+
 
 /** 登录 */
-export const getLogin = (data?: object) => {
-  return http.request<UserResult>("post", "/login", { data });
+export const requestLogin = (data?: object) => {
+  return http.request<LoginResult>("post", "/login", { data });
 };
 
-/** 刷新`token` */
-export const refreshTokenApi = (data?: object) => {
-  return http.request<RefreshTokenResult>("post", "/refresh-token", { data });
+/**
+ * 请求当前用户信息
+ */
+export const requestMyUserInfo = () => {
+  return http.request<UserResult>("post", "/user/my-info");
 };
+
+/**
+ * 登出用户
+ */
+export const requestLogout = () => {
+  return http.request<VoidResult>("post", "/logout");
+};
+
+// export type RefreshTokenResult = {
+//   success: boolean;
+//   data: {
+//     /** `token` */
+//     accessToken: string;
+//     /** 用于调用刷新`accessToken`的接口时所需的`token` */
+//     refreshToken: string;
+//     /** `accessToken`的过期时间（格式'xxxx/xx/xx xx:xx:xx'） */
+//     expires: Date;
+//   };
+// };
+
+// /** 刷新`token` */
+// export const refreshTokenApi = (data?: object) => {
+//   return http.request<RefreshTokenResult>("post", "/refresh-token", { data });
+// };

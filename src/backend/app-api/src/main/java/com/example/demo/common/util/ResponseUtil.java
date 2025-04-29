@@ -34,40 +34,14 @@ public class ResponseUtil {
         OBJECT_MAPPER.writeValue(response.getWriter(), obj);
     }
 
-    /**
-     * 清除所有Cookie和站点数据
-     *
-     * @param request  请求
-     * @param response 响应
-     */
-    public static void clearAllCookiesAndSiteData(HttpServletRequest request, HttpServletResponse response) {
-        assert request != null;
-        assert response != null;
-        /*清除cookie*/
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
-            return;
-        }
-        for (Cookie cookie : cookies) {
-            if (cookie == null) continue;
-            cookie.setPath("/");
-            cookie.setMaxAge(0);
-//            clearCookie.setSecure(request.isSecure());
-            response.addCookie(cookie);
-        }
-        /*设置Clear-Site-Data*/
-        clearSiteDataHeaderWriter.writeHeaders(request, response);
-    }
-
 
     private ResponseUtil(ObjectMapper objectMapper, @Value("${app.common.charset}") String encoding) {
-        synchronized (this) {
+        synchronized (ResponseUtil.class) {
             OBJECT_MAPPER = objectMapper;
             ENCODING = encoding;
         }
     }
 
-    private final static ClearSiteDataHeaderWriter clearSiteDataHeaderWriter = new ClearSiteDataHeaderWriter(ClearSiteDataHeaderWriter.Directive.ALL);
 
     private static ObjectMapper OBJECT_MAPPER = null;
 

@@ -8,6 +8,7 @@ import com.example.demo.common.config.security.login.LoginFilter;
 import com.example.demo.common.config.security.logout.CustomLogoutSuccessHandler;
 import com.example.demo.common.config.security.session.CustomInvalidSessionStrategy;
 import com.example.demo.common.config.security.session.CustomSessionInformationExpiredStrategy;
+import jakarta.annotation.Resource;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -28,9 +29,7 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
-import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.config.annotation.web.configurers.*;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -65,9 +64,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * Spring Security配置
+ *
  * @author martix
  * @description
- * @time 2025/4/21 23:27
+ * @time 2025/4/21
  */
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
@@ -77,51 +78,38 @@ public class SecurityConfig {
 
     private final AppSecurityProperties appSecurityProperties;
 
-    @Bean
-    FilterRegistrationBean<LoginFilter> loginFilterFilterRegistrationBean(LoginFilter loginFilter) {
-        FilterRegistrationBean<LoginFilter> filterRegistrationBean = new FilterRegistrationBean<>();
-        filterRegistrationBean.setFilter(loginFilter);
-        filterRegistrationBean.setName("loginFilter");
-        // 防止filter 2次调用
-        filterRegistrationBean.setEnabled(false);
-        return filterRegistrationBean;
-    }
+//    @Resource
+//    private CustomLogoutSuccessHandler customLogoutSuccessHandler;
+//
+//    @Resource
+//    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+//
+//    @Resource
+//    private CustomAccessDeniedHandler customAccessDeniedHandler;
 
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, CustomAccessDeniedHandler accessDeniedHandler, CustomAuthenticationEntryPoint authenticationEntryPoint, CustomInvalidSessionStrategy customInvalidSessionStrategy, LoginFilter loginFilter, CustomLogoutSuccessHandler customLogoutSuccessHandler, CustomSessionInformationExpiredStrategy customSessionInformationExpiredStrategy) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, LoginFilter loginFilter,
+                                            CustomSessionInformationExpiredStrategy customSessionInformationExpiredStrategy,
+                                            CustomInvalidSessionStrategy customInvalidSessionStrategy,
+                                            CustomLogoutSuccessHandler customLogoutSuccessHandler,
+                                            CustomAuthenticationEntryPoint customAuthenticationEntryPoint, CustomAccessDeniedHandler customAccessDeniedHandler) throws Exception {
         // 跨域
         httpSecurity.cors(cfg -> {
             cfg.configurationSource(corsConfigurationSource());
         });
         // CSRF攻击防护
-        httpSecurity.csrf(cfg -> {
-            // 显式设置HttpSessionCsrfTokenRepository
-            cfg.csrfTokenRepository(csrfTokenRepository());
-            cfg.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
-            // 所有请求都需要携带CSRF Token
-            cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"))
-                    .ignoringRequestMatchers(new AntPathRequestMatcher("/login", "POST"));
-            // 忽略所有permitAll
-            appSecurityProperties.getAuthorization().getPermitAllUri()
-                    .stream()
-                    .map(SecurityConfig::parseHttpMethodAndUriFromPropertiesUri)
-                    .forEach(e -> cfg.ignoringRequestMatchers(e.realUri()));
-        });
+        httpSecurity.csrf(this::configureCsrfProtection);
         // 登出配置
-        httpSecurity.logout(cfg -> {
-            cfg.logoutRequestMatcher(new AntPathRequestMatcher("/logout"));
-            cfg.addLogoutHandler(logoutHandler());
-            cfg.logoutSuccessHandler(customLogoutSuccessHandler);
+//        httpSecurity.logout(this::configureLogout);
+        httpSecurity.logout(logout -> {
+            logout.logoutRequestMatcher(new AntPathRequestMatcher("/logout"));
+            logout.addLogoutHandler(logoutHandler());
+            logout.logoutSuccessHandler(customLogoutSuccessHandler);
         });
         httpSecurity.formLogin(AbstractHttpConfigurer::disable);
         // 授权配置
-        httpSecurity.authorizeHttpRequests(cfg -> {
-            configureAuthorities(cfg);
-            cfg.dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll();
-            // 任何URL都需要认证
-            cfg.anyRequest().authenticated();
-        });
+        httpSecurity.authorizeHttpRequests(this::configureAuthorities);
         // securityContext存储配置，便于全局共享
         httpSecurity.securityContext(cfg -> {
             cfg.securityContextRepository(securityContextRepository())
@@ -129,8 +117,9 @@ public class SecurityConfig {
                     .requireExplicitSave(true);
         });
         // 异常处理
-        httpSecurity.exceptionHandling(cfg -> {
-            cfg.authenticationEntryPoint(authenticationEntryPoint).accessDeniedHandler(accessDeniedHandler);
+        httpSecurity.exceptionHandling(except -> {
+            except.authenticationEntryPoint(customAuthenticationEntryPoint)
+                    .accessDeniedHandler(customAccessDeniedHandler);
         });
         // 会话管理
         httpSecurity.sessionManagement(cfg -> {
@@ -145,7 +134,6 @@ public class SecurityConfig {
                     // session固定攻击
                     .sessionFixation(SessionManagementConfigurer.SessionFixationConfigurer::newSession);
         });
-
         // 自定义登录Filter
         httpSecurity.addFilterAfter(loginFilter, LogoutFilter.class);
 
@@ -157,6 +145,61 @@ public class SecurityConfig {
 
         log.debug("Spring Security配置完成");
         return build;
+    }
+
+    @Bean
+    FilterRegistrationBean<LoginFilter> loginFilterFilterRegistrationBean(LoginFilter loginFilter) {
+        FilterRegistrationBean<LoginFilter> filterRegistrationBean = new FilterRegistrationBean<>();
+        filterRegistrationBean.setFilter(loginFilter);
+        filterRegistrationBean.setName("loginFilter");
+        // 防止filter 2次调用
+        filterRegistrationBean.setEnabled(false);
+        return filterRegistrationBean;
+    }
+
+
+//    // 配置异处理
+//    private void configureExceptionHandling(ExceptionHandlingConfigurer<HttpSecurity> cfg) {
+//        cfg.authenticationEntryPoint(customAuthenticationEntryPoint)
+//                .accessDeniedHandler(customAccessDeniedHandler)
+//        ;
+//    }
+
+    // 配置会话管理
+//    private void configureSessionManagement(SessionManagementConfigurer<HttpSecurity> cfg) {
+//        // 并发会话管理
+//        cfg.sessionConcurrency(concurrency -> {
+//                    concurrency.sessionRegistry(concurrentSessionRegistry())
+//                            .maximumSessions(appSecurityProperties.getSession().getMaximumSessions())
+//                            .maxSessionsPreventsLogin(false)
+//                            .expiredSessionStrategy(customSessionInformationExpiredStrategy);
+//                })
+//                .invalidSessionStrategy(customInvalidSessionStrategy)
+//                // session固定攻击
+//                .sessionFixation(SessionManagementConfigurer.SessionFixationConfigurer::newSession);
+//    }
+
+    // 配置登出
+//    private void configureLogout(LogoutConfigurer<HttpSecurity> cfg) {
+//        cfg.logoutRequestMatcher(new AntPathRequestMatcher("/logout"));
+//        cfg.addLogoutHandler(logoutHandler());
+//        cfg.logoutSuccessHandler(customLogoutSuccessHandler);
+//    }
+
+    // 配置CSRF保护
+    private void configureCsrfProtection(CsrfConfigurer<HttpSecurity> cfg) {
+        // 显式设置HttpSessionCsrfTokenRepository
+        cfg.csrfTokenRepository(csrfTokenRepository());
+        cfg.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
+        // 所有请求都需要携带CSRF Token
+        cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"))
+                .ignoringRequestMatchers(new AntPathRequestMatcher("/login", "POST"));
+        // 完全放开
+        appSecurityProperties.getFullyOpenUris()
+                .stream()
+                .map(SecurityConfig::parseHttpMethodAndUriFromPropertiesUri)
+                .forEach(e -> cfg.ignoringRequestMatchers(
+                        new AntPathRequestMatcher(e.realUri(), e.method.name())));
     }
 
     // 填充LoginFilter属性
@@ -211,7 +254,7 @@ public class SecurityConfig {
     LogoutHandler logoutHandler() {
         SecurityContextLogoutHandler securityContextLogoutHandler = new SecurityContextLogoutHandler();
         securityContextLogoutHandler.setSecurityContextRepository(securityContextRepository());
-        HeaderWriterLogoutHandler headerWriterLogoutHandler = new HeaderWriterLogoutHandler(new ClearSiteDataHeaderWriter(ClearSiteDataHeaderWriter.Directive.ALL));
+        HeaderWriterLogoutHandler headerWriterLogoutHandler = new HeaderWriterLogoutHandler(new ClearSiteDataHeaderWriter(ClearSiteDataHeaderWriter.Directive.CACHE, ClearSiteDataHeaderWriter.Directive.COOKIES));
         CookieClearingLogoutHandler cookieClearingLogoutHandler = new CookieClearingLogoutHandler("JSESSIONID");
         return new CompositeLogoutHandler(securityContextLogoutHandler, headerWriterLogoutHandler, cookieClearingLogoutHandler);
     }
@@ -283,7 +326,7 @@ public class SecurityConfig {
     }
 
     /**
-     * 配置anonymous和permitAll
+     * 配置权限
      * 先配置注解扫描，再配置文件扫描
      */
     private void configureAuthorities(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry registry) {
@@ -293,28 +336,34 @@ public class SecurityConfig {
 
         // 通过配置文件
         configureAuthoritiesFromProperties(registry);
+
+        registry.dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll();
+        // 任何URL都需要认证
+        registry.anyRequest().authenticated();
     }
 
     // 从配置文件的properties进行配置权限
     private void configureAuthoritiesFromProperties(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry registry) {
-        List<String> permitAllUri = appSecurityProperties.getAuthorization().getPermitAllUri();
-        List<String> anonymousUri = appSecurityProperties.getAuthorization().getAnonymousUri();
 
+        // permit-all
+        appSecurityProperties.getFullyOpenUris().stream()
+                .map(SecurityConfig::parseHttpMethodAndUriFromPropertiesUri)
+                .forEach(e -> {
+                    registry.requestMatchers(e.method(), e.realUri()).permitAll();
+                });
 
-        // 仅允许匿名
-        for (String uri : anonymousUri) {
-            HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUriFromPropertiesUri(uri);
-            registry.requestMatchers(httpMethodAndUri.method(), httpMethodAndUri.realUri()).anonymous();
-            log.debug("配置匿名访问接口: {}", uri);
-        }
+        appSecurityProperties.getAuthorization().getPermitAllUri().stream()
+                .map(SecurityConfig::parseHttpMethodAndUriFromPropertiesUri)
+                .forEach(e -> {
+                    registry.requestMatchers(e.method(), e.realUri()).permitAll();
+                });
 
-        // 允许所有
-        for (String uri : permitAllUri) {
-            HttpMethodAndUri httpMethodAndUri = parseHttpMethodAndUriFromPropertiesUri(uri);
-            registry.requestMatchers(httpMethodAndUri.method(), httpMethodAndUri.realUri()).permitAll();
-            log.debug("配置所有可访问接口: {}", uri);
-        }
-
+        // anonymous
+        appSecurityProperties.getAuthorization().getAnonymousUri().stream()
+                .map(SecurityConfig::parseHttpMethodAndUriFromPropertiesUri)
+                .forEach(e -> {
+                    registry.requestMatchers(e.method(), e.realUri()).permitAll();
+                });
     }
 
     // 扫描注解进行配置权限
