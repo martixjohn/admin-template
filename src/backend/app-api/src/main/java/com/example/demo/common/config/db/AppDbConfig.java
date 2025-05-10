@@ -9,7 +9,6 @@ import com.example.demo.repository.user.UserMapper;
 import com.example.demo.repository.user.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
@@ -28,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AppDbConfig {
 
-    private final AppDbProperties appDbProperties;
+    private final AppDbConfigProperties appDbConfigProperties;
 
     private final UserMapper userMapper;
 
@@ -42,11 +41,11 @@ public class AppDbConfig {
     @Transactional(rollbackFor = Exception.class)
     public void onApplicationEvent(ApplicationStartedEvent event) {
         // 需要初始化数据库
-        if (appDbProperties.isEnableInit()) {
+        if (appDbConfigProperties.isEnableInit()) {
             /* 添加超级管理员 */
             UserPO userPO = new UserPO();
-            userPO.setUsername(appDbProperties.getSuperAdminUsername());
-            userPO.setPassword(passwordEncoder.encode(appDbProperties.getSuperAdminPassword()));
+            userPO.setUsername(appDbConfigProperties.getSuperAdminUsername());
+            userPO.setPassword(passwordEncoder.encode(appDbConfigProperties.getSuperAdminPassword()));
             userMapper.insert(userPO);
 
             RolePO rolePO = new RolePO();
@@ -57,7 +56,7 @@ public class AppDbConfig {
             userRolePO.setUserId(userPO.getId());
             userRolePO.setRoleId(rolePO.getId());
             userRoleMapper.insert(userRolePO);
-            log.info("初始化超级管理员成功！username={}  password={}", appDbProperties.getSuperAdminUsername(), appDbProperties.getSuperAdminPassword());
+            log.info("初始化超级管理员成功！username={}  password={}", appDbConfigProperties.getSuperAdminUsername(), appDbConfigProperties.getSuperAdminPassword());
         }
     }
 }

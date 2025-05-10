@@ -14,8 +14,9 @@ import lombok.Getter;
 public enum ExceptionCode {
     SUCCESS(0, "正常"),
     BAD_REQUEST(400_000, "错误请求"),
-    WRONG_AUTHENTICATION(400_001, "用户名或密码错误"),
+    // 完全未经认证
     UNAUTHENTICATED(401_000, "未认证"),
+    // 认证通过，无权限
     FORBIDDEN(403_000, "访问被拒绝"),
     NOT_FOUND(404_000, "找不到资源"),
     INTERNAL_SERVER_ERROR(500_000, "内部异常"),

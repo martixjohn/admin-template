@@ -1,14 +1,13 @@
 package com.example.demo.common.pojo.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * @author martix
@@ -19,10 +18,13 @@ import java.util.Objects;
 @Setter
 public class BasePO implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-
+    // 物理键
     @TableId(type = IdType.AUTO)
     protected Long id;
+
+//    // 逻辑主键
+//    @TableField(fill = FieldFill.INSERT)
+//    protected UUID uuid;
 
     // 数据创建时间
     @TableField(fill = FieldFill.INSERT)

@@ -9,6 +9,7 @@ create table user
     id                 bigint primary key auto_increment,
 
     username           char(255) unique not null,
+    nickname           char(255),
     password           char(255)        not null,
     email              char(255),
     avatar_local_path  varchar(512) comment "头像本地路径",
@@ -79,14 +80,13 @@ create table role_permission
     role_id       bigint not null,
     permission_id bigint not null,
 
-    created_time       datetime,
-    created_by          bigint,
-    updated_time       datetime,
-    updated_by         bigint,
-    description        varchar(512),
-    deleted            boolean default false
+    created_time  datetime,
+    created_by    bigint,
+    updated_time  datetime,
+    updated_by    bigint,
+    description   varchar(512),
+    deleted       boolean default false
 );
 
 create unique index index_role_permission on role_permission (role_id, permission_id);
-
 

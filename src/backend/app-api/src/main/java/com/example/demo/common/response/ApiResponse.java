@@ -17,11 +17,13 @@ import lombok.Setter;
 @Setter
 public class ApiResponse<T> {
 
-    @Schema(description = "错误码")
+    @Schema(description = "错误码", requiredMode = Schema.RequiredMode.REQUIRED)
     private final int code;
-    @Schema(description = "错误信息")
+
+    @Schema(description = "错误信息", requiredMode = Schema.RequiredMode.REQUIRED)
     private final String msg;
-    @Schema(description = "实际数据")
+
+    @Schema(description = "实际数据", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private final T data;
 
     private ApiResponse(int code, String msg, T data) {
@@ -30,10 +32,10 @@ public class ApiResponse<T> {
         this.data = data;
     }
 
-    @Schema(description = "是否成功")
-    public boolean isSuccess() {
-        return code == ExceptionCode.SUCCESS.getCode();
-    }
+//    @Schema(description = "是否成功", requiredMode = Schema.RequiredMode.REQUIRED)
+//    public boolean isSuccess() {
+//        return code == ExceptionCode.SUCCESS.getCode();
+//    }
 
     public static <T> ApiResponse<T> success(T data) {
         ExceptionCode success = ExceptionCode.SUCCESS;

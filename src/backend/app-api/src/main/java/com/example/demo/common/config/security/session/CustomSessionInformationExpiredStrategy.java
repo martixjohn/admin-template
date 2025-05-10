@@ -26,6 +26,6 @@ public class CustomSessionInformationExpiredStrategy implements SessionInformati
     public void onExpiredSessionDetected(SessionInformationExpiredEvent event) throws IOException, ServletException {
         SessionInformation sessionInformation = event.getSessionInformation();
         log.info("Session过期：{}", sessionInformation);
-        ResponseUtil.writeJSONWithDefaultEncoding(event.getResponse(), ApiResponse.failure(ExceptionCode.FORBIDDEN, "会话已过期，请重新登录"));
+        ResponseUtil.writeJSONWithDefaultEncoding(event.getResponse(), ApiResponse.failure(ExceptionCode.UNAUTHENTICATED, "会话已过期，请重新登录"));
     }
 }

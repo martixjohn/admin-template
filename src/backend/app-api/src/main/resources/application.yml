@@ -7,6 +7,10 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
 
 app:
+  server:
+    host: 0.0.0.0
+    http-port: 80
+    https-port: 443
   common:
     charset: UTF-8
   db:
@@ -15,13 +19,13 @@ app:
     session:
       expires-in: 1h
       maximum-sessions: 1
-    authorization:
-      permit-all-uri:
-        - GET /
-        - GET /v3/api-docs/*
-        - GET /doc.html
-        - GET /webjars/**
-      anonymous-uri:
+
+    fully-open-uris:
+      - /debug/**
+      - GET /
+      - GET /v3/api-docs/*
+      - GET /doc.html
+      - GET /webjars/**
 
 ---
 # 数据库相关
@@ -67,4 +71,10 @@ server:
   error:
     whitelabel:
       enabled: false
-
+  port: ${app.server.https-port}
+  address: ${app.server.host}
+  ssl:
+    key-store: classpath:keystore.p12
+    key-store-password: 123456
+    key-store-type: PKCS12
+    

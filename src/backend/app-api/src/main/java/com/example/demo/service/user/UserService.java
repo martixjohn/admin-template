@@ -2,6 +2,7 @@ package com.example.demo.service.user;
 
 import com.example.demo.common.exception.AppServiceException;
 import com.example.demo.common.pojo.service.User;
+import com.example.demo.common.pojo.service.UserProfile;
 
 import java.util.Optional;
 import java.util.Set;
@@ -41,6 +42,13 @@ public interface UserService {
      * @description 失败抛出异常
      */
     void addUser(String username, String password, String role);
+
+    /**
+     * 通过指定的username来更新用户
+     * @description 更新非null字段，非username字段
+     * @param user 用户数据
+     */
+    void updateUserProfileByUsername(UserProfile user);
 
     /**
      * 改变密码

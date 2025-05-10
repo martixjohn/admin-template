@@ -1,6 +1,9 @@
 package com.example.demo.common.config.security.login;
 
 import com.example.demo.common.exception.AppServiceException;
+import com.example.demo.common.exception.ExceptionCode;
+import com.example.demo.common.response.ApiResponse;
+import com.example.demo.common.util.ResponseUtil;
 import com.example.demo.service.user.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
@@ -11,12 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationDetailsSource;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -74,11 +75,19 @@ public class LoginFilter extends AbstractAuthenticationProcessingFilter {
             throw new AuthenticationServiceException(ex.getMessage());
         }
         // 认证
-        Authentication authenticate = getAuthenticationManager()
-                .authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, password));
-        log.info("Authenticated user: {}", authenticate.getName());
+        try {
+            Authentication authenticate = getAuthenticationManager()
+                    .authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, password));
+            log.info("Authenticated user: {}", authenticate.getName());
 
-        return authenticate;
+            return authenticate;
+        } catch (UsernameNotFoundException | BadCredentialsException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.warn("认证遇到未知异常: {}", ex.getMessage());
+            ResponseUtil.writeJSONWithDefaultEncoding(response, ApiResponse.failure(ExceptionCode.INTERNAL_SERVER_ERROR));
+            return null;
+        }
     }
 
     // 自动注入

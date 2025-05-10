@@ -4,7 +4,7 @@ import com.example.demo.api.user.request.UserChangePasswordRequest;
 import com.example.demo.api.user.request.UserRegisterRequest;
 import com.example.demo.api.user.response.UserSafeVO;
 import com.example.demo.api.user.request.UserAddRequest;
-import com.example.demo.common.annotation.PermitAllAuthentication;
+import com.example.demo.common.annotation.PermitAllAuthorization;
 import com.example.demo.common.auth.Authorities;
 import com.example.demo.common.pojo.service.User;
 import com.example.demo.common.response.ApiResponse;
@@ -33,12 +33,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
-@Tag(name = "用户管理")
+@Tag(name = "user", description = "用户管理")
 public class UserController {
     private final UserService userService;
     private final LogoutHandler logoutHandler;
 
-    @PermitAllAuthentication
+    @PermitAllAuthorization
     @Operation(summary = "用户自行注册")
     @PostMapping("/register")
     public ApiResponse<Void> register(@RequestBody UserRegisterRequest request) {
@@ -49,7 +49,7 @@ public class UserController {
         return ApiResponse.success();
     }
 
-    @PermitAllAuthentication
+    @PermitAllAuthorization
     @Operation(summary = "检查是否登录")
     @GetMapping("/is-login")
     public ApiResponse<Boolean> isLogin(@AuthenticationPrincipal User user) {

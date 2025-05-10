@@ -1,17 +1,11 @@
 package com.example.demo;
 
-import com.example.demo.common.config.security.AppSecurityProperties;
+import com.example.demo.common.config.security.AppSecurityConfigProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.core.env.Environment;
-import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
-import org.springframework.security.web.authentication.RememberMeServices;
-import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
-import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.CharacterEncodingFilter;
 
 /**
  * 用作测试
@@ -27,7 +21,7 @@ public class ApplicationTestAware implements ApplicationContextAware {
 //        SessionInformationExpiredStrategy bean1 = applicationContext.getBean(SessionInformationExpiredStrategy.class);
 //        log.info("bean1: {}", bean1);
 
-        AppSecurityProperties bean = applicationContext.getBean(AppSecurityProperties.class);
+        AppSecurityConfigProperties bean = applicationContext.getBean(AppSecurityConfigProperties.class);
         log.info("读取配置: {}", bean);
 
 //        AbstractAuthenticationProcessingFilter filter = applicationContext.getBean(AbstractAuthenticationProcessingFilter.class);

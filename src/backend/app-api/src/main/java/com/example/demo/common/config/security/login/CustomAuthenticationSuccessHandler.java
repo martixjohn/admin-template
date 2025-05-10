@@ -15,6 +15,7 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 /**
  * 登录成功处理
@@ -35,6 +36,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         csrfTokenRepository.saveToken(csrfToken, request, response);
         User principal = (User) authentication.getPrincipal();
         log.info("为{}生成CsrfToken: {}", principal.getUsername(), csrfToken.getToken());
+        principal.setLastLoginTime(LocalDateTime.now());
+
         UserLoginVO userLoginVO = new UserLoginVO();
         userLoginVO.setCsrfToken(csrfToken.getToken());
         ResponseUtil.writeJSONWithDefaultEncoding(response, ApiResponse.success(userLoginVO, "登录成功"));

@@ -22,11 +22,8 @@ import java.util.Set;
 @Setter
 @ToString
 public class User extends BaseDTO implements CredentialsContainer, UserDetails {
-    // 用户名
+    // 用户名，无法更改
     private String username;
-
-    // 密码，hash加密后的
-    private String password;
 
     // 昵称
     private String nickname;
@@ -39,6 +36,9 @@ public class User extends BaseDTO implements CredentialsContainer, UserDetails {
 
     // 头像，服务器存储路径，IP:port/xxx
     private String avatarServerPath;
+
+    // 密码，hash加密后的
+    private String password;
 
     // 用户是否被封锁
     private boolean accountLocked;

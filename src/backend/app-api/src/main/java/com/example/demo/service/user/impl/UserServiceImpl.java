@@ -2,13 +2,15 @@ package com.example.demo.service.user.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.example.demo.common.config.security.AppSecurityProperties;
+import com.example.demo.common.config.security.AppSecurityConfigProperties;
 import com.example.demo.common.exception.AppServiceException;
 import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.pojo.entity.*;
 import com.example.demo.common.pojo.service.User;
+import com.example.demo.common.pojo.service.UserProfile;
 import com.example.demo.repository.user.*;
 import com.example.demo.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -56,8 +58,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     private Pattern PASSWORD_PATTERN;
 
     @Autowired
-    private void setAppSecurityProperties(AppSecurityProperties appSecurityProperties) {
-        AppSecurityProperties.Account account = appSecurityProperties.getAccount();
+    private void setAppSecurityProperties(AppSecurityConfigProperties appSecurityConfigProperties) {
+        AppSecurityConfigProperties.Account account = appSecurityConfigProperties.getAccount();
         String usernamePattern = account.getUsernamePattern();
         String passwordPattern = account.getPasswordPattern();
         log.debug("配置用户名规则: {}", usernamePattern);
@@ -155,6 +157,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         userRoleMapper.insert(userRolePO);
     }
 
+    @Override
+    public void updateUserProfileByUsername(UserProfile user) {
+        // 查询操作
+        LambdaQueryWrapper<UserPO> eq = Wrappers.<UserPO>lambdaQuery().eq(UserPO::getUsername, user.getUsername());
+        UserPO userPO = userMapper.selectOne(eq);
+        // 不存在
+        if (userPO == null) {
+            throw new AppServiceException(ExceptionCode.BAD_REQUEST, "用户不存在");
+        }
+
+        Optional.ofNullable(user.getNickname()).ifPresent(userPO::setNickname);
+        Optional.ofNullable(user.getEmail()).ifPresent(userPO::setEmail);
+        Optional.ofNullable(user.getAvatarLocalPath()).ifPresent(userPO::setAvatarLocalPath);
+        Optional.ofNullable(user.getAvatarServerPath()).ifPresent(userPO::setAvatarServerPath);
+
+        baseMapper.update(userPO, eq);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void changePassword(String oldPassword, String newPassword) {
@@ -220,13 +240,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         }
     }
 
-
     /**
      * Spring Security内部调用
      */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        log.info("loadUserByUsername: {}", username);
+//        log.info("loadUserByUsername: {}", username);
         return getFullInfoByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户 " + username + " 找不到"));
     }

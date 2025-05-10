@@ -5,12 +5,14 @@ import com.example.demo.common.response.ApiResponse;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.web.HttpMediaTypeException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 处理SpringMVC异常
+ *
  * @author martix
  * @description
  * @time 2025/4/27 19:50
@@ -18,9 +20,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 @Order(1)
 public class WebMVCExceptionHandler {
-    @ExceptionHandler(exception = HttpMessageConversionException.class)
+    @ExceptionHandler(exception = {HttpMessageConversionException.class, HttpRequestMethodNotSupportedException.class})
     public ApiResponse<Void> handleHttpMessageException(Exception ex) {
-        return ApiResponse.failure(ExceptionCode.BAD_REQUEST);
+        return ApiResponse.failure(ExceptionCode.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(exception = NoResourceFoundException.class)

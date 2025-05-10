@@ -40,7 +40,7 @@ public class CustomInvalidSessionStrategy implements InvalidSessionStrategy {
         logoutHandler.logout(request, response, authentication);
 
         ResponseUtil.writeJSONWithDefaultEncoding(response,
-                ApiResponse.failure(ExceptionCode.BAD_REQUEST, "会话无效"));
+                ApiResponse.failure(ExceptionCode.UNAUTHENTICATED, "会话无效"));
 
     }
 

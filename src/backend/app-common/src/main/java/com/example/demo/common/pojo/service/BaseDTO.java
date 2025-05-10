@@ -1,7 +1,5 @@
 package com.example.demo.common.pojo.service;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -9,8 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
+ * 和持久层绑定的DTO基类
  * @author martix
  * @description
  * @time 2025/4/26
@@ -20,10 +20,11 @@ import java.util.Objects;
 @Setter
 public class BaseDTO implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-
     // 对应数据库id
     protected Long id;
+
+//    // 对应数据库id
+//    protected UUID uuid;
 
     // 数据创建时间
     protected LocalDateTime createdTime;

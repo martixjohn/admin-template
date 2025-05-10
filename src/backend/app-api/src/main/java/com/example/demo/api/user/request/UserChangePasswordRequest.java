@@ -8,9 +8,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @time 2025/4/27 18:07
  */
 public record UserChangePasswordRequest(
-        @Schema(description = "旧密码")
+        @Schema(description = "旧密码", requiredMode = Schema.RequiredMode.REQUIRED)
         String oldPassword,
-        @Schema(description = "新密码")
+        @Schema(description = "新密码", requiredMode = Schema.RequiredMode.REQUIRED)
         String newPassword
 ) {
 }
