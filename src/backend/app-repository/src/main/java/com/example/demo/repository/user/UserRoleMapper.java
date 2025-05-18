@@ -1,12 +1,17 @@
 package com.example.demo.repository.user;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.example.demo.common.pojo.entity.UserRolePO;
+import com.example.demo.common.pojo.po.UserRolePO;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
+ * 用户_角色
  * @author martix
  * @description
- * @time 2025/4/23 11:24
+ * @time 5/12/25 9:13 AM
  */
+@Mapper
 public interface UserRoleMapper extends BaseMapper<UserRolePO> {
+
+
 }

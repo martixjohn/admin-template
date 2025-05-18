@@ -1,25 +1,31 @@
 package com.example.demo.service.user.impl;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.demo.common.config.security.AppSecurityConfigProperties;
 import com.example.demo.common.exception.AppServiceException;
 import com.example.demo.common.exception.ExceptionCode;
-import com.example.demo.common.pojo.entity.*;
-import com.example.demo.common.pojo.service.User;
-import com.example.demo.common.pojo.service.UserProfile;
-import com.example.demo.repository.user.*;
+import com.example.demo.common.manager.RedisCacheManager;
+import com.example.demo.common.pojo.dto.CachedUser;
+import com.example.demo.common.pojo.dto.User;
+import com.example.demo.common.pojo.dto.UserProfile;
+import com.example.demo.common.pojo.po.RolePO;
+import com.example.demo.common.pojo.po.UserPO;
+import com.example.demo.common.pojo.po.UserRolePO;
+import com.example.demo.common.request.PageQueryRequest;
+import com.example.demo.repository.user.RoleMapper;
+import com.example.demo.repository.user.RolePermissionMapper;
+import com.example.demo.repository.user.UserMapper;
+import com.example.demo.repository.user.UserRoleMapper;
 import com.example.demo.service.user.UserService;
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -27,12 +33,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
+import java.time.Duration;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * @author martix
@@ -45,17 +51,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements UserService, UserDetailsService {
 
-    private final UserMapper userMapper;
-    private final UserRoleMapper userRoleMapper;
-    private final RoleMapper roleMapper;
-    private final RolePermissionMapper rolePermissionMapper;
-    private final PermissionMapper permissionMapper;
-    private final PasswordEncoder passwordEncoder;
-    private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
     // 用户名匹配
     private Pattern USERNAME_PATTERN;
     // 密码匹配
     private Pattern PASSWORD_PATTERN;
+    // 会话失效时间
+    private Duration SESSION_EXPIRE_TIME;
+    // 允许的最大会话数量
+    private int MAX_SESSION_COUNT;
+
+
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final RedisCacheManager redisCacheManager;
+    private final RoleMapper roleMapper;
+    private final UserRoleMapper userRoleMapper;
+    private final RolePermissionMapper rolePermissionMapper;
 
     @Autowired
     private void setAppSecurityProperties(AppSecurityConfigProperties appSecurityConfigProperties) {
@@ -66,66 +77,128 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         log.debug("配置密码规则: {}", passwordPattern);
         this.USERNAME_PATTERN = Pattern.compile(usernamePattern);
         this.PASSWORD_PATTERN = Pattern.compile(passwordPattern);
+        this.SESSION_EXPIRE_TIME = appSecurityConfigProperties.getSession().getExpiresIn();
+        this.MAX_SESSION_COUNT = appSecurityConfigProperties.getSession().getMaximumSessions();
+    }
+
+    private String getCachedUserKey(String username) {
+        return "USER:" + username;
+    }
+
+    @Override
+    public void addUserToSession(User user, String token) {
+        String username = user.getUsername();
+        String cacheKey = getCachedUserKey(username);
+        // 针对同一个用户
+        synchronized (cacheKey) {
+            // 缓存的用户
+            CachedUser cachedUser = redisCacheManager.get(cacheKey, CachedUser.class);
+            // 已经有缓存
+            if (cachedUser != null) {
+                // 达到会话上限, 删除第一个 (LRU)
+                if (cachedUser.getTokens().size() == MAX_SESSION_COUNT) {
+                    cachedUser.getTokens().removeFirst();
+                    log.info("{}达到会话上限，强制让之前会话下线", cachedUser.getUser().getUsername());
+                }
+            } else {
+                // 会话过期后第一次登录
+                cachedUser = new CachedUser();
+                cachedUser.setTokens(new LinkedList<>());
+            }
+
+            // 存储JWT,用户信息缓存到redis
+            cachedUser.getTokens().addLast(token);
+            // 为了一致性,防止有可能是旧数据
+            cachedUser.setUser(user);
+
+            // 设置缓存, 并刷新过期时间
+            redisCacheManager.set(cacheKey, cachedUser, SESSION_EXPIRE_TIME);
+        }
+
+        userMapper.updateLastLoginTime(username);
     }
 
 
+    @Nullable
     @Override
-    public Optional<User> getFullInfoByUsername(String username) {
-        if (StrUtil.isBlank(username)) {
-            return Optional.empty();
-        }
-        User res = new User();
-        UserPO userPO = userMapper
-                .selectOne(
-                        Wrappers.<UserPO>lambdaQuery()
-                                .eq(UserPO::getUsername, username)
-                );
-        if (userPO == null)
-            return Optional.empty();
-        log.info("数据库中用户信息: {}", userPO);
-        // 用户_角色关联表，得到roleId
-        Set<Long> roleIds = userRoleMapper
-                .selectList(
-                        Wrappers.<UserRolePO>lambdaQuery()
-                                .eq(UserRolePO::getUserId, userPO.getId())
-                ).stream()
-                .map(UserRolePO::getRoleId)
-                .collect(Collectors.toSet());
+    public User getUserFromSession(String username, String token) {
+        CachedUser cachedUser = redisCacheManager.get(getCachedUserKey(username), CachedUser.class);
 
-        // 每个roleId查询到role name
-        Set<String> roleNames = new HashSet<>();
-        for (Long roleId : roleIds) {
-            RolePO rolePO = roleMapper.selectById(roleId);
-            // 重要！
-            if (rolePO != null) {
-                roleNames.add(rolePO.getName());
+        // 视为过期
+        if (cachedUser == null || !cachedUser.getTokens().contains(token)) {
+            return null;
+        }
+
+        return cachedUser.getUser();
+    }
+
+    @Override
+    public void invalidateAllSessionsOfUser(String username) {
+        redisCacheManager.delete(getCachedUserKey(username));
+    }
+
+    @Override
+    public void invalidateOneSessionOfUser(String username, String token) {
+        synchronized (username.intern()) {
+            String cacheKey = getCachedUserKey(username);
+            CachedUser cachedUser = redisCacheManager.get(cacheKey, CachedUser.class);
+            if (cachedUser == null) return;// 已经登出
+
+            // 所有会话都登出, 没必要存储
+            if (cachedUser.getTokens().size() == 1) {
+                redisCacheManager.delete(cacheKey);
+                return;
+            }
+
+            Duration expiredIn = redisCacheManager.getExpire(cacheKey);
+
+            if (!expiredIn.isZero()) {
+                // 只删除当前登录状态(可能不同地点登录)
+                cachedUser.getTokens().remove(token);
+                redisCacheManager.set(cacheKey, cachedUser, expiredIn);
             }
         }
-        res.setRoles(roleNames);
+    }
 
-        // 对每个角色role获取permission
-        Set<String> permissionNames = new HashSet<>();
-        for (Long rId : roleIds) {
-            permissionNames.addAll(getPermissionByRoleId(rId));
+    @Override
+    public boolean checkPassword(String username, String password) {
+        UserPO userPO = userMapper.selectOne(Wrappers.<UserPO>lambdaQuery().eq(UserPO::getUsername, username));
+        if (userPO == null) {
+            return false;
         }
-        res.setPermissions(permissionNames);
+        return passwordEncoder.matches(password, userPO.getPassword());
+    }
 
-        // 组装结果
-        BeanUtil.copyProperties(userPO, res);
-        res.setRoles(roleNames);
-        res.setPermissions(permissionNames);
-        log.info("读取用户信息: {}", res);
-        return Optional.of(res);
+    @Nullable
+    @Override
+    public User getOneByUsername(String username) {
+        return userMapper.selectOneByUsername(username);
+    }
+
+    // 条件查询限制的field
+    private final static Set<String> QUERY_CONDITION_LIMIT_FIELDS = Set.of("username", "createdTime", "updatedTime");
+
+    @Override
+    public IPage<User> getBatch(PageQueryRequest pageQueryRequest) {
+
+        // 注意，无法一次性查询出角色和权限
+        IPage<UserPO> userPOPage = userMapper.selectPage(
+                pageQueryRequest.toPage(),
+                pageQueryRequest.toQueryConditions(QUERY_CONDITION_LIMIT_FIELDS));
+
+        List<User> list = userPOPage.getRecords().stream().map(
+                e -> getOneByUsername(e.getUsername())
+        ).toList();
+        Page<User> ret = new Page<>(userPOPage.getCurrent(), userPOPage.getSize(), userPOPage.getTotal());
+        BeanUtil.copyProperties(userPOPage, ret);
+        ret.setRecords(list);
+        return ret;
     }
 
 
     @Override
     public Set<String> getPermissionsByRole(String role) {
-        RolePO rolePO = roleMapper.selectOne(Wrappers.<RolePO>lambdaQuery().eq(RolePO::getName, role));
-        if (rolePO == null) {
-            return new HashSet<>(0);
-        }
-        return getPermissionByRoleId(rolePO.getId());
+        return rolePermissionMapper.selectPermissionsByRoleName(role);
     }
 
 
@@ -134,11 +207,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     public void addUser(String username, String password, String role) {
         checkValidUsernameAndPassword(username, password);
 
-        boolean present = getFullInfoByUsername(username).isPresent();
+        boolean present = getOneByUsername(username) != null;
         if (present) {
             throw new AppServiceException(ExceptionCode.BAD_REQUEST, "用户已存在");
         }
-        RolePO rolePO = roleMapper.selectOne(Wrappers.<RolePO>lambdaQuery().eq(RolePO::getName, role));
+        RolePO rolePO = roleMapper.selectByRoleName(role);
         if (rolePO == null) {
             throw new AppServiceException(ExceptionCode.BAD_REQUEST, "非法的角色名");
         }
@@ -158,38 +231,37 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     }
 
     @Override
+    public void deleteUser(String username) {
+        if (!userMapper.deleteByUsername(username)) {
+            throw new AppServiceException(ExceptionCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
     public void updateUserProfileByUsername(UserProfile user) {
         // 查询操作
-        LambdaQueryWrapper<UserPO> eq = Wrappers.<UserPO>lambdaQuery().eq(UserPO::getUsername, user.getUsername());
-        UserPO userPO = userMapper.selectOne(eq);
+        UserPO userPO = userMapper.selectOnePOByUsername(user.getUsername());
         // 不存在
         if (userPO == null) {
             throw new AppServiceException(ExceptionCode.BAD_REQUEST, "用户不存在");
         }
 
+        // 更改非null字段
         Optional.ofNullable(user.getNickname()).ifPresent(userPO::setNickname);
         Optional.ofNullable(user.getEmail()).ifPresent(userPO::setEmail);
         Optional.ofNullable(user.getAvatarLocalPath()).ifPresent(userPO::setAvatarLocalPath);
         Optional.ofNullable(user.getAvatarServerPath()).ifPresent(userPO::setAvatarServerPath);
 
-        baseMapper.update(userPO, eq);
+        userMapper.updateByUsername(userPO);
+
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void changePassword(String oldPassword, String newPassword) {
-        if (!validatePassword(newPassword) || !validatePassword(oldPassword)) {
-            throw new AppServiceException(ExceptionCode.BAD_REQUEST, "密码规则不正确，应当符合" + PASSWORD_PATTERN);
-        }
-        Authentication authentication = securityContextHolderStrategy.getContext().getAuthentication();
-        User principal = (User) authentication.getPrincipal();
-        String username = principal.getUsername();
+    public void changePassword(String username, String newPassword) {
+        checkValidUsernameAndPassword(username, newPassword);
+
         UserPO userPO = userMapper.selectOne(Wrappers.<UserPO>lambdaQuery().eq(UserPO::getUsername, username));
-        String password = userPO.getPassword();
-        // 比对
-        if (!passwordEncoder.matches(oldPassword, password)) {
-            throw new AppServiceException(ExceptionCode.BAD_REQUEST, "密码不正确");
-        }
         // 设置新密码
         userPO.setPassword(passwordEncoder.encode(newPassword));
         userMapper.updateById(userPO);
@@ -205,26 +277,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         return PASSWORD_PATTERN.matcher(password).matches();
     }
 
-    private Set<String> getPermissionByRoleId(Long roleId) {
-        // 角色_权限关联表，得到permissionId
-        List<Long> permissionIds = rolePermissionMapper
-                .selectList(Wrappers.<RolePermissionPO>lambdaQuery()
-                        .eq(RolePermissionPO::getRoleId, roleId))
-                .stream()
-                .map(RolePermissionPO::getPermissionId)
-                .toList();
-
-        // 每个permissionId查询到permissionName
-        Set<String> permissionNames = new HashSet<>();
-        for (Long pId : permissionIds) {
-            PermissionPO po = permissionMapper.selectById(pId);
-            // 重要！
-            if (pId != null) {
-                permissionNames.add(po.getName());
-            }
-        }
-        return permissionNames;
-    }
 
     // 检查用户名密码合法性，非法抛出异常
     @Override
@@ -246,7 +298,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 //        log.info("loadUserByUsername: {}", username);
-        return getFullInfoByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("用户 " + username + " 找不到"));
+        User fullInfoByUsername = getOneByUsername(username);
+        if (fullInfoByUsername == null) {
+            throw new UsernameNotFoundException("用户 " + username + " 找不到");
+        }
+        return fullInfoByUsername;
     }
+
 }

@@ -1,17 +1,15 @@
 package com.example.demo.common.config.mybatisplus;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
-import com.example.demo.common.pojo.service.User;
+import com.example.demo.common.pojo.dto.User;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 字段填充策略
@@ -36,7 +34,7 @@ public class CustomMetaObjectHandler implements MetaObjectHandler {
                 strictInsertFill(metaObject, "createdBy", Long.class, user.getId());
             }
         }
-        strictInsertFill(metaObject, "uuid", UUID.class, UUID.randomUUID());
+//        strictInsertFill(metaObject, "uuid", UUID.class, UUID.randomUUID());
     }
 
     @Override

@@ -1,3 +1,5 @@
+openapi2ts.config.ts
+
 # Logs
 logs
 *.log

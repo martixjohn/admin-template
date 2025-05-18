@@ -11,25 +11,26 @@ import lombok.Getter;
  */
 @Getter
 public class AppServiceException extends RuntimeException {
-    /**
-     * 返回的码
-     */
-    private final int code;
 
     /**
-     * 返回的信息
+     * 对应前端的code
+     */
+    private final ExceptionCode code;
+
+    /**
+     * 默认ExceptionCode.msg，可以覆盖
      */
     private final String msg;
 
 
     public AppServiceException(ExceptionCode exceptionCode) {
-        this.code = exceptionCode.getCode();
+        this.code = exceptionCode;
         this.msg = exceptionCode.getMsg();
     }
 
     public AppServiceException(ExceptionCode exceptionCode, String msg) {
-        this.code = exceptionCode.getCode();
-        this.msg = msg != null ? msg : exceptionCode.getMsg();
+        this.code = exceptionCode;
+        this.msg = msg;
     }
 
 }

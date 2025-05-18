@@ -1,7 +1,92 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.example.demo.service.user.dao.UserMapper">
+<mapper namespace="com.example.demo.repository.user.UserMapper">
+    <resultMap id="fullUserMap" type="com.example.demo.common.pojo.dto.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="nickname" column="nickname"/>
+        <result property="email" column="email"/>
+        <result property="accountLocked" column="account_locked"/>
+        <result property="avatarLocalPath" column="avatar_local_path"/>
+        <result property="avatarServerPath" column="avatar_server_path"/>
+        <result property="lastLoginTime" column="last_login_time"/>
+        <result property="accountLocked" column="account_locked"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdTime" column="created_time"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedTime" column="updated_time"/>
+        <result property="description" column="description"/>
+        <collection property="roles" column="role" ofType="string" javaType="java.util.HashSet">
+            <id column="role"/>
+        </collection>
+        <collection property="permissions" column="permission" ofType="string" javaType="java.util.HashSet">
+            <id column="permission"/>
+        </collection>
+    </resultMap>
+    <sql id="userColumns">
+        user.id AS id,
+        user.username AS username,
+        user.nickname AS nickname,
+        user.password AS password,
+        user.email AS email,
+        user.avatar_local_path AS avatar_local_path,
+        user.avatar_server_path AS avatar_server_path,
+        user.account_locked AS account_locked,
+        user.last_login_time AS last_login_time,
+        user.disabled     AS disabled,
+        user.created_time AS created_time,
+        user.created_by   AS created_by,
+        user.updated_time AS updated_time,
+        user.updated_by   AS updated_by,
+        user.description  AS description
+    </sql>
+    <sql id="fullUserColumns">
+        <include refid="userColumns"/>,
+        role.name AS role,
+        permission.name AS permission
+    </sql>
+    <update id="updateLastLoginTime">
+        UPDATE user
+        SET last_login_time=CURRENT_DATE()
+        WHERE username = #{username}
+    </update>
+    <select id="selectOneByUsername" resultMap="fullUserMap">
+        SELECT
+        <include refid="fullUserColumns"/>
+        FROM user
+        LEFT JOIN user_role ON user.id = user_role.user_id
+        LEFT JOIN role ON user_role.role_id = role.id
+        LEFT JOIN role_permission ON role.id = role.id = role_permission.role_id
+        LEFT JOIN permission ON role_permission.permission_id = permission.id
+        WHERE user.username = #{username}
+        AND user.deleted = 0
+        AND (user_role.deleted = 0 OR user_role.deleted IS NULL)
+        AND (role.deleted = 0 OR role.deleted IS NULL)
+        AND (role_permission.deleted = 0 OR role_permission.deleted IS NULL)
+        AND (permission.deleted = 0 OR permission.deleted IS NULL)
+    </select>
+    <select id="selectPage" resultType="com.example.demo.common.pojo.po.UserPO">
+        SELECT
+        <include refid="userColumns"/>
+        FROM user
+        <where>
+            user.deleted=0
+            <if test="query != null">
+                <foreach collection="query" item="con">
+                    <if test="con.op != 'like'">
+                        AND ${con.field} ${con.op} #{con.value}
+                    </if>
+                    <if test="con.op == 'like'">
+                        AND ${con.field} LIKE CONCAT('%',#{con.value}, '%')
+                    </if>
+                </foreach>
+            </if>
+        </where>
+
+    </select>
+
 
 </mapper>

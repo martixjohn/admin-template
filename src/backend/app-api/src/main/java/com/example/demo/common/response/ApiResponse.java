@@ -26,13 +26,12 @@ public class ApiResponse<T> {
     @Schema(description = "实际数据", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private final T data;
 
-    private ApiResponse(int code, String msg, T data) {
+    protected ApiResponse(int code, String msg, T data) {
         this.code = code;
         this.msg = msg;
         this.data = data;
     }
-
-//    @Schema(description = "是否成功", requiredMode = Schema.RequiredMode.REQUIRED)
+    //    @Schema(description = "是否成功", requiredMode = Schema.RequiredMode.REQUIRED)
 //    public boolean isSuccess() {
 //        return code == ExceptionCode.SUCCESS.getCode();
 //    }
@@ -51,15 +50,16 @@ public class ApiResponse<T> {
         return success(null);
     }
 
+    public static ApiResponse<Void> failure(ExceptionCode expCode) {
+        return new ApiResponse<>(expCode.getCode(), expCode.getMsg(), null);
+    }
+
     public static ApiResponse<Void> failure(ExceptionCode expCode, String msg) {
         return new ApiResponse<>(expCode.getCode(), msg, null);
     }
 
-    public static ApiResponse<Void> failure(int code, String msg) {
-        return new ApiResponse<>(code, msg, null);
+    public static <T> ApiResponse<T> failure(ExceptionCode expCode, String msg, T data) {
+        return new ApiResponse<>(expCode.getCode(), msg, data);
     }
 
-    public static ApiResponse<Void> failure(ExceptionCode expCode) {
-        return new ApiResponse<>(expCode.getCode(), expCode.getMsg(), null);
-    }
 }

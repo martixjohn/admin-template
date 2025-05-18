@@ -3,19 +3,13 @@ package com.example.demo.common.config.security;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.common.exception.ExceptionCode;
 import com.example.demo.common.util.ResponseUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.CharacterEncodingFilter;
 
 import java.io.IOException;
 

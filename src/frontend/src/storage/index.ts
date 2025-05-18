@@ -8,8 +8,12 @@ class Storage {
 
   public getItem(key: string): any | null {
     const item = localStorage.getItem(key); // 不可能为undefined
-    if (item === null || typeof item === "string") return item;
-    return JSON.parse(item);
+    if (item === null) return item;
+    try {
+      return JSON.parse(item);
+    } catch {
+      return item;
+    }
   }
 
   public removeItem(key: string): void {
@@ -18,6 +22,7 @@ class Storage {
 }
 
 const _storage = new Storage();
+
 
 export interface UserInfoInStorage {
   /** 用户名 */
@@ -33,13 +38,13 @@ export interface UserInfoInStorage {
   /** 权限 */
   permissions: string[];
   /** 上次登录时间 */
-  lastLoginTime?: Date;
+  lastLoginTime?: string;
   /** 创建时间 */
-  createdTime: Date;
+  createdTime: string;
   /** 更新时间 */
-  updatedTime?: Date;
+  updatedTime?: string;
   /** CSRF防攻击 */
-  csrfToken: string;
+  token: string;
 }
 
 class StorageManager {

@@ -1,9 +1,12 @@
 /*@import "normalize.css";*/
 
 * {
-    padding: 0;
-    margin: 0;
+  padding: 0;
+  margin: 0;
 }
 
-:root {
+:root,
+body {
+  padding: 0;
+  margin: 0;
 }

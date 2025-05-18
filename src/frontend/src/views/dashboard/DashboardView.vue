@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import AppNavigation from "@/views/dashboard/nav/AppNavigation.vue";
 import { onMounted } from "vue";
-import { isLogin } from "@/api/user.ts";
-
-
+import { isLogin } from "@/request/api/user.ts";
+import AppHeader from "./header/AppHeader.vue";
 
 onMounted(async () => {
   console.log("Component mounted.");
-
 });
-
 </script>
 
 <template>
@@ -20,15 +17,38 @@ onMounted(async () => {
     </el-aside>
     <el-container>
       <!--      头部-->
-      <el-header>Header</el-header>
+      <el-header>
+        <AppHeader />
+      </el-header>
       <!--      主体内容-->
       <el-main>
+        <br />
         <router-view v-slot="{ Component }">
-          <transition>
+          <Transition name="app-dashboard-route-view">
             <component :is="Component" />
-          </transition>
+          </Transition>
         </router-view>
       </el-main>
     </el-container>
   </el-container>
 </template>
+
+<style lang="scss">
+.app-dashboard-route-view {
+  &-enter-active {
+    transition: all 0.5s ease;
+  }
+
+  &-enter-from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  &-leave-to {
+    display: none;
+  }
+  &-leave-active {
+    display: none;
+  }
+}
+</style>

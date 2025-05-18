@@ -28,7 +28,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Primary
     @Bean
-    public ObjectMapper jsonObjectMapper(Jackson2ObjectMapperBuilder builder) {
+    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
         return builder.build();
     }
 

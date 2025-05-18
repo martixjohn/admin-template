@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Bean;
 public class Application {
 
     public static void main(String[] args) {
-        ConfigurableApplicationContext ioc = SpringApplication.run(Application.class, args);
+        SpringApplication.run(Application.class, args);
     }
 
     @Bean

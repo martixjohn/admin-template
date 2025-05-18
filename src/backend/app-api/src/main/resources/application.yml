@@ -9,20 +9,24 @@ spring:
 app:
   server:
     host: 0.0.0.0
-    http-port: 80
-    https-port: 443
+    http-port: 8080
+    https-port: 8443
   common:
     charset: UTF-8
   db:
     enable-init: false
   security:
+    jwt:
+      secret: "qweoimjaosijd_da1udad"
     session:
       expires-in: 1h
       maximum-sessions: 1
-
-    fully-open-uris:
+    white-list-uri:
       - /debug/**
       - GET /
+      - GET /index.html
+      - GET /favicon.ico
+            # 以下为swagger knife4j
       - GET /v3/api-docs/*
       - GET /doc.html
       - GET /webjars/**
@@ -31,9 +35,16 @@ app:
 # 数据库相关
 spring:
   datasource:
-    url: jdbc:mariadb://127.0.0.1:3306/db_test
+    url: jdbc:mysql://127.0.0.1:3306/admin_template
     username: root
     password: root
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      password: redis
 ---
 
 # springdoc-openapi项目配置
@@ -58,23 +69,19 @@ knife4j:
 
 mybatis-plus:
   type-aliases-package: com.example.demo.**.pojo
-  mapper-locations: classpath*:com/example/demo/repository/mapper/mapper/**/*.xml
-
+  mapper-locations: classpath*:com/example/demo/repository/mapper/**/*.xml
 
 server:
   servlet:
     encoding:
       charset: ${app.common.charset}
-    session:
-      store-dir: ./target/session-dir
-      timeout: ${app.security.session.expires-in}
   error:
     whitelabel:
       enabled: false
   port: ${app.server.https-port}
   address: ${app.server.host}
-  ssl:
-    key-store: classpath:keystore.p12
-    key-store-password: 123456
-    key-store-type: PKCS12
+    #  ssl:
+    #    key-store: classpath:keystore.p12
+    #    key-store-password: 123456
+    #    key-store-type: PKCS12
     

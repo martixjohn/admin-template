@@ -57,11 +57,12 @@
             </dependency>
 
             <!--子module end-->
-            <!--            <dependency>-->
-            <!--                <groupId>org.mybatis.spring.boot</groupId>-->
-            <!--                <artifactId>mybatis-spring-boot-starter</artifactId>-->
-            <!--                <version>3.0.4</version>-->
-            <!--            </dependency>-->
+
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>8.0.33</version>
+            </dependency>
 
             <!--MyBatisPlus相关 https://baomidou.com/getting-started-->
 
@@ -73,12 +74,7 @@
                 <scope>import</scope>
             </dependency>
 
-            <!--            <dependency>-->
-            <!--                <groupId>org.mybatis.spring.boot</groupId>-->
-            <!--                <artifactId>mybatis-spring-boot-starter-test</artifactId>-->
-            <!--                <version>3.0.4</version>-->
-            <!--                <scope>test</scope>-->
-            <!--            </dependency>-->
+
             <!--hutool https://www.hutool.cn/docs-->
             <dependency>
                 <groupId>cn.hutool</groupId>

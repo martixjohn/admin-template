@@ -7,7 +7,10 @@ import router from "./router";
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 import * as ElementPlusIconsVue from "@element-plus/icons-vue";
-import { appConfig } from "@/config/app.ts";
+import { appConfig } from "@/configs/app.ts";
+import { errorNotification } from "@/utils/messageNotification.ts";
+import { AppError } from "./error";
+import { Route } from "./configs/router";
 
 document.title = appConfig.title;
 
@@ -22,5 +25,20 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 }
 
 app.use(ElementPlus);
-app.mount("#app");
 
+app.config.errorHandler = (err: unknown) => {
+  if (err instanceof AppError) {
+    errorNotification(err.message);
+    console.debug("ERROR", err.type, err.detail, err.stack);
+    // 未认证
+    if (err.type === "unauthenticated") {
+      router.replace({ name: Route.LOGIN });
+    }
+    return;
+  } else {
+    errorNotification("错误！请联系开发者: " + err);
+    console.error("ERROR", err);
+  }
+};
+
+app.mount("#app");

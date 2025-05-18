@@ -1,7 +1,9 @@
 package com.example.demo.api.user.response;
 
+import com.example.demo.common.pojo.dto.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.springframework.beans.BeanUtils;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -40,4 +42,12 @@ public class UserSafeVO {
 
     @Schema(description = "权限", requiredMode = Schema.RequiredMode.REQUIRED)
     private Set<String> permissions;
+
+    public UserSafeVO() {}
+
+    public static UserSafeVO of(User user) {
+        UserSafeVO userSafeVO = new UserSafeVO();
+        BeanUtils.copyProperties(user, userSafeVO);
+        return userSafeVO;
+    }
 }

@@ -24,7 +24,7 @@ public class AppSecurityConfigProperties {
      * 完全放开的URI，Spring Security不会进行拦截
      * 格式：METHOD URI或者URI
      */
-    private List<String> fullyOpenUris = new ArrayList<>();
+    private List<String> whiteListUri = new ArrayList<>();
 
 
     private Authorization authorization = new Authorization();
@@ -84,7 +84,7 @@ public class AppSecurityConfigProperties {
     public static class Session {
 
         /**
-         * 会话过期时间，最少1分钟
+         * 会话过期时间
          */
         private Duration expiresIn = Duration.ofMinutes(30);
 
@@ -92,5 +92,15 @@ public class AppSecurityConfigProperties {
          * 用户最大会话数量，超过会导致旧会话失效
          */
         private int maximumSessions = 1;
+    }
+
+    private Jwt jwt = new Jwt();
+
+    @Data
+    public static class Jwt {
+        /**
+         * 服务器签名和验签私钥
+         */
+        private String secret = "XNIUGEf89dfncao1&ads";
     }
 }

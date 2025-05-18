@@ -1,4 +1,4 @@
-import { ElMessage } from "element-plus";
+import { ElMessage, ElNotification } from "element-plus";
 
 
 /**
@@ -6,7 +6,7 @@ import { ElMessage } from "element-plus";
  * @param msg 信息文本
  */
 export const infoNotification = (msg: string) =>
-  ElMessage({
+  ElNotification({
     showClose: true,
     type: "info",
     message: msg,
@@ -17,7 +17,7 @@ export const infoNotification = (msg: string) =>
  * @param msg 信息文本
  */
 export const successNotification = (msg: string = "成功") =>
-  ElMessage({
+  ElNotification({
     showClose: true,
     type: "success",
     message: msg,
@@ -28,7 +28,7 @@ export const successNotification = (msg: string = "成功") =>
  * @param msg 信息文本
  */
 export const warningNotification = (msg: string = "成功") =>
-  ElMessage({
+  ElNotification({
     showClose: true,
     type: "warning",
     message: msg,
@@ -39,7 +39,7 @@ export const warningNotification = (msg: string = "成功") =>
  * @param msg 信息文本
  */
 export const errorNotification = (msg: string = "成功") =>
-  ElMessage({
+  ElNotification({
     showClose: true,
     type: "error",
     message: msg,

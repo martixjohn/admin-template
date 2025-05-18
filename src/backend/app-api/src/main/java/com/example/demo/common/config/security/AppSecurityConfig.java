@@ -3,29 +3,27 @@ package com.example.demo.common.config.security;
 import cn.hutool.extra.spring.SpringUtil;
 import com.example.demo.common.annotation.AnonymousAuthorization;
 import com.example.demo.common.annotation.PermitAllAuthorization;
-import com.example.demo.common.config.security.login.LoginFilter;
-import com.example.demo.common.config.security.logout.CustomLogoutSuccessHandler;
-import com.example.demo.common.config.security.session.CustomInvalidSessionStrategy;
-import com.example.demo.common.config.security.session.CustomSessionInformationExpiredStrategy;
+import com.example.demo.common.auth.Authorities;
+import com.example.demo.common.filter.AutoLoginFilter;
+import com.example.demo.common.filter.WhiteListFilter;
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationDetailsSource;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.*;
-import org.springframework.security.core.session.SessionRegistry;
-import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,15 +32,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.RememberMeServices;
-import org.springframework.security.web.authentication.logout.*;
-import org.springframework.security.web.authentication.session.*;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.csrf.*;
-import org.springframework.security.web.header.writers.ClearSiteDataHeaderWriter;
+import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -74,25 +69,18 @@ public class AppSecurityConfig {
 
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, LoginFilter loginFilter,
-                                            CustomSessionInformationExpiredStrategy customSessionInformationExpiredStrategy,
-                                            CustomInvalidSessionStrategy customInvalidSessionStrategy,
-                                            CustomLogoutSuccessHandler customLogoutSuccessHandler,
-                                            CustomAuthenticationEntryPoint customAuthenticationEntryPoint, CustomAccessDeniedHandler customAccessDeniedHandler) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, AutoLoginFilter autoLoginFilter,
+                                            CustomAuthenticationEntryPoint customAuthenticationEntryPoint, CustomAccessDeniedHandler customAccessDeniedHandler, WhiteListFilter whiteListFilter) throws Exception {
 
         // 跨域
-        httpSecurity.cors(cfg -> {
-            cfg.configurationSource(corsConfigurationSource());
-        });
-        // CSRF攻击防护
-        httpSecurity.csrf(this::configureCsrfProtection);
-        // 登出配置
-//        httpSecurity.logout(this::configureLogout);
-        httpSecurity.logout(logout -> {
-            logout.logoutRequestMatcher(new AntPathRequestMatcher("/logout"));
-            logout.addLogoutHandler(logoutHandler());
-            logout.logoutSuccessHandler(customLogoutSuccessHandler);
-        });
+        httpSecurity.cors(cfg -> cfg.configurationSource(corsConfigurationSource()));
+        // CSRF攻击防护, 使用JWT不需要
+        httpSecurity.csrf(AbstractHttpConfigurer::disable);
+        // logout手动，不需要
+        httpSecurity.logout(AbstractHttpConfigurer::disable);
+        // 会话管理手动，不需要
+        httpSecurity.sessionManagement(AbstractHttpConfigurer::disable);
+        // 不用默认表单登录
         httpSecurity.formLogin(AbstractHttpConfigurer::disable);
         // 授权配置
         httpSecurity.authorizeHttpRequests(this::configureAuthorities);
@@ -102,119 +90,44 @@ public class AppSecurityConfig {
                     // SecurityContextHolder
                     .requireExplicitSave(true);
         });
-        // 异常处理
+        // 认证授权异常处理
         httpSecurity.exceptionHandling(except -> {
             except.authenticationEntryPoint(customAuthenticationEntryPoint)
                     .accessDeniedHandler(customAccessDeniedHandler);
         });
-        // 会话管理
-        httpSecurity.sessionManagement(cfg -> {
-            // 并发会话管理
-            cfg.sessionConcurrency(concurrency -> {
-                        concurrency.sessionRegistry(concurrentSessionRegistry())
-                                .maximumSessions(appSecurityConfigProperties.getSession().getMaximumSessions())
-                                .maxSessionsPreventsLogin(false)
-                                .expiredSessionStrategy(customSessionInformationExpiredStrategy);
-                    })
-                    .invalidSessionStrategy(customInvalidSessionStrategy)
-                    // session固定攻击
-                    .sessionFixation(SessionManagementConfigurer.SessionFixationConfigurer::newSession);
-        });
+
         // 自定义登录Filter
-        httpSecurity.addFilterAfter(loginFilter, LogoutFilter.class);
+        httpSecurity.addFilterAfter(autoLoginFilter, LogoutFilter.class);
+
+        httpSecurity.addFilterBefore(whiteListFilter, DisableEncodeUrlFilter.class);
 
         // 在此.build()以获取共享object便于配置
         DefaultSecurityFilterChain build = httpSecurity.build();
-
-        // 填充loginFilter属性
-        populateLoginFilter(httpSecurity, loginFilter);
-
 
         log.debug("Spring Security配置完成");
         return build;
     }
 
     @Bean
-    FilterRegistrationBean<LoginFilter> loginFilterFilterRegistrationBean(LoginFilter loginFilter) {
-        FilterRegistrationBean<LoginFilter> filterRegistrationBean = new FilterRegistrationBean<>();
-        filterRegistrationBean.setFilter(loginFilter);
+    FilterRegistrationBean<AutoLoginFilter> loginFilterFilterRegistrationBean(AutoLoginFilter autoLoginFilter) {
+        FilterRegistrationBean<AutoLoginFilter> filterRegistrationBean = new FilterRegistrationBean<>();
+        filterRegistrationBean.setFilter(autoLoginFilter);
         filterRegistrationBean.setName("loginFilter");
-        // 防止filter 2次调用
+        // 加在Spring Security FilterChain
         filterRegistrationBean.setEnabled(false);
         return filterRegistrationBean;
     }
 
-
-//    // 配置异处理
-//    private void configureExceptionHandling(ExceptionHandlingConfigurer<HttpSecurity> cfg) {
-//        cfg.authenticationEntryPoint(customAuthenticationEntryPoint)
-//                .accessDeniedHandler(customAccessDeniedHandler)
-//        ;
-//    }
-
-    // 配置会话管理
-//    private void configureSessionManagement(SessionManagementConfigurer<HttpSecurity> cfg) {
-//        // 并发会话管理
-//        cfg.sessionConcurrency(concurrency -> {
-//                    concurrency.sessionRegistry(concurrentSessionRegistry())
-//                            .maximumSessions(appSecurityProperties.getSession().getMaximumSessions())
-//                            .maxSessionsPreventsLogin(false)
-//                            .expiredSessionStrategy(customSessionInformationExpiredStrategy);
-//                })
-//                .invalidSessionStrategy(customInvalidSessionStrategy)
-//                // session固定攻击
-//                .sessionFixation(SessionManagementConfigurer.SessionFixationConfigurer::newSession);
-//    }
-
-    // 配置登出
-//    private void configureLogout(LogoutConfigurer<HttpSecurity> cfg) {
-//        cfg.logoutRequestMatcher(new AntPathRequestMatcher("/logout"));
-//        cfg.addLogoutHandler(logoutHandler());
-//        cfg.logoutSuccessHandler(customLogoutSuccessHandler);
-//    }
-
-    // 配置CSRF保护
-    private void configureCsrfProtection(CsrfConfigurer<HttpSecurity> cfg) {
-        // 显式设置HttpSessionCsrfTokenRepository
-        cfg.csrfTokenRepository(csrfTokenRepository());
-        cfg.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
-        // 所有请求都需要携带CSRF Token
-        cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"))
-                .ignoringRequestMatchers(new AntPathRequestMatcher("/login", "POST"));
-        // 完全放开
-        appSecurityConfigProperties.getFullyOpenUris()
-                .forEach(e -> {
-                    log.info("完全放开: {}", e);
-                    AntPathRequestMatcher requestMatcher = parsePropertiesUri(e);
-                    cfg.ignoringRequestMatchers(requestMatcher);
-                });
+    @Bean
+    FilterRegistrationBean<WhiteListFilter> fullyOpenFilterFilterRegistrationBean(WhiteListFilter filter) {
+        FilterRegistrationBean<WhiteListFilter> filterRegistrationBean = new FilterRegistrationBean<>();
+        filterRegistrationBean.setFilter(filter);
+        filterRegistrationBean.setName("fullyOpenFilter");
+        // 加在Spring Security FilterChain
+        filterRegistrationBean.setEnabled(false);
+        return filterRegistrationBean;
     }
 
-    // 填充LoginFilter属性
-    private static void populateLoginFilter(HttpSecurity httpSecurity, LoginFilter loginFilter) {
-        SessionAuthenticationStrategy sessionAuthenticationStrategy = httpSecurity.getSharedObject(SessionAuthenticationStrategy.class);
-        assert sessionAuthenticationStrategy != null;
-        loginFilter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy);
-
-        MessageSource messageSource = httpSecurity.getSharedObject(MessageSource.class);
-        assert messageSource != null;
-        loginFilter.setMessageSource(messageSource);
-
-        ApplicationEventPublisher eventPublisher = httpSecurity.getSharedObject(ApplicationEventPublisher.class);
-        assert eventPublisher != null;
-        loginFilter.setApplicationEventPublisher(eventPublisher);
-
-        @SuppressWarnings("unchecked")
-        AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource = (AuthenticationDetailsSource<HttpServletRequest, ?>) httpSecurity.getSharedObject(AuthenticationDetailsSource.class);
-        if (authenticationDetailsSource != null) {
-            loginFilter.setAuthenticationDetailsSource(authenticationDetailsSource);
-        }
-
-        RememberMeServices rememberMeServices = httpSecurity.getSharedObject(RememberMeServices.class);
-        if (rememberMeServices != null) {
-            loginFilter.setRememberMeServices(rememberMeServices);
-        }
-    }
 
 
     // 跨域配置
@@ -228,24 +141,25 @@ public class AppSecurityConfig {
         return source;
     }
 
-    // CSRF攻击防护Token存储
-    @Bean
-    CsrfTokenRepository csrfTokenRepository() {
-        // 显式设置
-        HttpSessionCsrfTokenRepository repository = new HttpSessionCsrfTokenRepository();
-        repository.setHeaderName("X-CSRF-TOKEN");
-        return repository;
-    }
+    //    // 配置CSRF保护
+//    private void configureCsrfProtection(CsrfConfigurer<HttpSecurity> cfg) {
+//        // 显式设置HttpSessionCsrfTokenRepository
+//        cfg.csrfTokenRepository(csrfTokenRepository());
+//        cfg.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
+//        // 所有请求都需要携带CSRF Token
+//        cfg.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/**"))
+//                .ignoringRequestMatchers(new AntPathRequestMatcher("/login", "POST"));
+//    }
 
-    // 登出处理
-    @Bean
-    LogoutHandler logoutHandler() {
-        SecurityContextLogoutHandler securityContextLogoutHandler = new SecurityContextLogoutHandler();
-        securityContextLogoutHandler.setSecurityContextRepository(securityContextRepository());
-        HeaderWriterLogoutHandler headerWriterLogoutHandler = new HeaderWriterLogoutHandler(new ClearSiteDataHeaderWriter(ClearSiteDataHeaderWriter.Directive.CACHE, ClearSiteDataHeaderWriter.Directive.COOKIES));
-        CookieClearingLogoutHandler cookieClearingLogoutHandler = new CookieClearingLogoutHandler("JSESSIONID");
-        return new CompositeLogoutHandler(securityContextLogoutHandler, headerWriterLogoutHandler, cookieClearingLogoutHandler);
-    }
+    // CSRF攻击防护Token存储
+//    @Bean
+//    CsrfTokenRepository csrfTokenRepository() {
+//        // 显式设置
+//        HttpSessionCsrfTokenRepository repository = new HttpSessionCsrfTokenRepository();
+//        repository.setHeaderName("X-CSRF-TOKEN");
+//        return repository;
+//    }
+
 
     // 密码加密
     @Bean
@@ -283,35 +197,35 @@ public class AppSecurityConfig {
         return new DelegatingSecurityContextRepository(new RequestAttributeSecurityContextRepository(), new HttpSessionSecurityContextRepository());
     }
 
-//    // 角色层次结构
-//    @Bean
-//    RoleHierarchy roleHierarchy() {
-//        return RoleHierarchyImpl.withRolePrefix("ROLE_")
-//                .role(Authorities.ROLE_SUPER_ADMIN).implies(Authorities.ROLE_ADMIN)
-//                .role(Authorities.ROLE_ADMIN).implies(Authorities.ROLE_USER)
-//                .build();
-//    }
-
-    // and, if using pre-post method security also add
-//    @Bean
-//    static MethodSecurityExpressionHandler methodSecurityExpressionHandler(/*RoleHierarchy roleHierarchy*/) {
-//        DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
-//        expressionHandler.setRoleHierarchy(roleHierarchy);
-//        return expressionHandler;
-//    }
-
-    // 为了识别Session生命周期
+    // 角色层次结构
     @Bean
-    HttpSessionEventPublisher httpSessionEventPublisher() {
-        return new HttpSessionEventPublisher();
+    RoleHierarchy roleHierarchy() {
+        return RoleHierarchyImpl.withRolePrefix("")
+                .role(Authorities.ROLE_SUPER_ADMIN).implies(Authorities.ROLE_ADMIN)
+                .role(Authorities.ROLE_ADMIN).implies(Authorities.ROLE_USER)
+                .build();
     }
 
-
-    // 并发控制session存储
+//     and, if using pre-post method security also add
     @Bean
-    SessionRegistry concurrentSessionRegistry() {
-        return new SessionRegistryImpl();
+    static MethodSecurityExpressionHandler methodSecurityExpressionHandler(RoleHierarchy roleHierarchy) {
+        DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
+        expressionHandler.setRoleHierarchy(roleHierarchy);
+        return expressionHandler;
     }
+
+//    // 为了识别Session生命周期
+//    @Bean
+//    HttpSessionEventPublisher httpSessionEventPublisher() {
+//        return new HttpSessionEventPublisher();
+//    }
+
+
+//    // 并发控制session存储
+//    @Bean
+//    SessionRegistry concurrentSessionRegistry() {
+//        return new SessionRegistryImpl();
+//    }
 
     /**
      * 配置权限
@@ -333,11 +247,6 @@ public class AppSecurityConfig {
     // 从配置文件的properties进行配置权限
     private void configureAuthoritiesFromProperties(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry registry) {
 
-        // fully-open
-        appSecurityConfigProperties.getFullyOpenUris()
-                .forEach(e -> {
-                    registry.requestMatchers(parsePropertiesUri(e)).permitAll();
-                });
         // permit-all
         appSecurityConfigProperties.getAuthorization().getPermitAllUri()
                 .forEach(e -> {
@@ -378,7 +287,7 @@ public class AppSecurityConfig {
 
 
     //  将文件中的uri信息包装成请求方法和uri
-    private static AntPathRequestMatcher parsePropertiesUri(String uri) {
+    public static AntPathRequestMatcher parsePropertiesUri(String uri) {
         String[] split = uri.split("\\s");
         if (split.length > 2) {
             throw new IllegalArgumentException("错误的uri配置：" + uri);
